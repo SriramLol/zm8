@@ -98,6 +98,12 @@ zm8_bossfight       Der Eisendrache only: force-start the final
                     wants one pad per connected player but the map
                     only has 4. Get everyone into the undercroft
                     first, then run this.
+zm8_eecomplete      Der Eisendrache only, TESTING CHEAT: skip the
+                    entire main quest straight to boss-ready (the
+                    pyramid rises in the undercroft). Follow with
+                    zm8_bossfight to start the fight. Skipped quest
+                    flags stay unset, so the ending cinematic may
+                    not play after the boss dies.
 Toggles reset to these defaults every new game. Turning allperks off
 mid-game keeps perks people already have; they lose them normally on
 downs.

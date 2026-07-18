@@ -102,12 +102,57 @@ function zm8_powerup_pool_fixer()
 //   zm8_spawn            - force every waiting spectator to spawn in now
 //   zm8_autospawn [0|1]  (no arg = toggle) - auto-spawn mid-round joiners
 //   zm8_bossfight        - Der Eisendrache: force-start the final boss fight
+//   zm8_eecomplete       - Der Eisendrache TEST cheat: skip the whole main
+//                          quest to boss-ready (then use zm8_bossfight)
 autoexec function zm8_register_commands()
 {
     addcommand("zm8_allperks", &zm8_cmd_allperks);
     addcommand("zm8_spawn", &zm8_cmd_spawn);
     addcommand("zm8_autospawn", &zm8_cmd_autospawn);
     addcommand("zm8_bossfight", &zm8_cmd_bossfight);
+    addcommand("zm8_eecomplete", &zm8_cmd_eecomplete);
+}
+
+// Testing cheat. Setting the "boss_fight_ready" flag is all that launches the
+// boss sequence (pyramid rise in the undercroft, then the pad gate that
+// zm8_bossfight releases) - the fight uses none of the earlier quest state,
+// and the keeper AI the real quest spawns is deleted again before this flag
+// in a legit run. The one physical leftover is the raised pyramid ramps the
+// ceremony normally lowers, so lower them here the same way. Skipped-over
+// quest flags stay unset, so the ending cinematic after the boss may not
+// play in a skipped run.
+function zm8_cmd_eecomplete(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_eecomplete only works on Der Eisendrache");
+        return;
+    }
+
+    if (!isdefined(level.flag) || !isdefined(level.flag["boss_fight_ready"]))
+    {
+        zm8_announce("^1zm8: boss fight system not initialized on this map");
+        return;
+    }
+
+    if (level.flag["boss_fight_ready"])
+    {
+        zm8_announce("^3zm8: quest is already at boss-ready or beyond");
+        return;
+    }
+
+    zm8_announce("^2zm8: TEST - skipping quest to boss-ready, watch the undercroft");
+
+    ramps = getentarray("pyramid", "targetname");
+
+    for (i = 0; i < ramps.size; i++)
+    {
+        ramps[i] notsolid();
+        ramps[i] connectpaths();
+        ramps[i] moveto(ramps[i].origin - (0, 0, 96), 3);
+    }
+
+    level scripts\shared\flag_shared::set("boss_fight_ready");
 }
 
 // Der Eisendrache only: the final boss fight starts when the count of
