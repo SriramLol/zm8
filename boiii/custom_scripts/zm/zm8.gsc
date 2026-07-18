@@ -417,7 +417,10 @@ function zm8_de_cmd_ragnarok(args)
 
         player scripts\zm\_zm_weapons::weapon_give(wpn, 0, 1);
         player gadgetpowerset(player gadgetgetslot(wpn), 100);
-        player scripts\zm\_zm_weap_gravityspikes::update_gravityspikes_state(2);
+
+        // _zm_weap_gravityspikes is castle-only and this script links on
+        // every map, so set the state field the way its helper does
+        player.gravityspikes_state = 2;
         count++;
     }
 
@@ -1113,7 +1116,72 @@ function zm8_origins_cmd_eenext(args)
     }
 
     zm8_announce("^2zm8: force-completing " + level._cur_stage_name);
-    scripts\zm\_zm_sidequests::stage_completed("little_girl_lost", level._cur_stage_name);
+    level thread zm8_origins_complete_stage(quest, stage);
+}
+
+// Replicates _zm_sidequests::stage_completed_internal using only the data
+// and function pointers stored on level._zombie_sidequests - linking to the
+// sidequest script directly breaks maps that do not load it. Only skipped
+// stock behavior: stage hint assets are not deleted.
+function zm8_origins_complete_stage(quest, stage)
+{
+    level notify(quest.name + "_" + stage.name + "_over");
+    level notify(quest.name + "_" + stage.name + "_completed");
+
+    if (isdefined(quest.generic_stage_end_func))
+    {
+        stage [[quest.generic_stage_end_func]]();
+    }
+
+    if (isdefined(stage.exit_func))
+    {
+        stage [[stage.exit_func]](1);
+    }
+
+    stage.completed = 1;
+    quest.last_completed_stage = quest.active_stage;
+    quest.active_stage = -1;
+
+    all_complete = 1;
+    names = getarraykeys(quest.stages);
+
+    for (i = 0; i < names.size; i++)
+    {
+        if (quest.stages[names[i]].completed == 0)
+        {
+            all_complete = 0;
+            break;
+        }
+    }
+
+    if (all_complete == 1)
+    {
+        if (isdefined(quest.complete_func))
+        {
+            quest thread [[quest.complete_func]]();
+        }
+
+        level notify("sidequest_" + quest.name + "_complete");
+    }
+}
+
+// _zm_weap_one_inch_punch is tomb-only, so its stock giver cannot be linked
+// from this all-maps script. Swap the melee slot to the upgraded punch the
+// way the stock giver does. Players who earned a punch legitimately already
+// run the map's melee monitor; for pure cheat recipients the punch does its
+// weapon-def melee damage without the scripted AOE knockdown.
+function zm8_origins_give_punch_weapon()
+{
+    w_melee = self scripts\zm\_zm_utility::get_player_melee_weapon();
+
+    if (isdefined(w_melee))
+    {
+        self takeweapon(w_melee);
+    }
+
+    w_punch = getweapon("one_inch_punch_upgraded");
+    self giveweapon(w_punch);
+    self scripts\zm\_zm_utility::set_player_melee_weapon(w_punch);
 }
 
 // Upgraded One-Inch Punch for everyone, via the stock giver thread (handles
@@ -1147,7 +1215,7 @@ function zm8_origins_cmd_punch(args)
             player.str_punch_element = "upgraded";
         }
 
-        player thread scripts\zm\_zm_weap_one_inch_punch::one_inch_punch_melee_attack();
+        player zm8_origins_give_punch_weapon();
     }
 
     if (isdefined(level.flag) && isdefined(level.flag["ee_all_players_upgraded_punch"]) && !level.flag["ee_all_players_upgraded_punch"])
