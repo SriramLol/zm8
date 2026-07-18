@@ -49,6 +49,7 @@ Run `zm8-gum-picker.bat` → pick up to 5 gums (type to filter, `per` → Perkah
 | `zm8_spawn` | spawn in everyone waiting in spectate right now (mid-round joiners AND bled-out players — an early revive) |
 | `zm8_autospawn` | toggle auto-spawn: mid-round joiners spawn in within ~3s instead of waiting for the next round (bled-out players still wait, so dying keeps its penalty). Default: on |
 | `zm8_autospawn 1` / `0` | explicitly on / off |
+| `zm8_bossfight` | Der Eisendrache only: force-start the final boss fight. The stock start ritual (everyone plants Ragnarok DG-4s on the 4 pads at once) can never complete with 5+ players connected, because the game demands one pad per connected player but the map only has 4. Get everyone to the undercroft first, then run this |
 
 Toggles reset to their defaults every new game.
 

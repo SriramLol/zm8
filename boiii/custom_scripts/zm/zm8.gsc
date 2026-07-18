@@ -101,11 +101,45 @@ function zm8_powerup_pool_fixer()
 //   zm8_allperks  [0|1]  (no arg = toggle) - permanent all-perks
 //   zm8_spawn            - force every waiting spectator to spawn in now
 //   zm8_autospawn [0|1]  (no arg = toggle) - auto-spawn mid-round joiners
+//   zm8_bossfight        - Der Eisendrache: force-start the final boss fight
 autoexec function zm8_register_commands()
 {
     addcommand("zm8_allperks", &zm8_cmd_allperks);
     addcommand("zm8_spawn", &zm8_cmd_spawn);
     addcommand("zm8_autospawn", &zm8_cmd_autospawn);
+    addcommand("zm8_bossfight", &zm8_cmd_bossfight);
+}
+
+// Der Eisendrache only: the final boss fight starts when the count of
+// claimed gravity-spike pads reaches level.players.size, but the map has
+// only 4 pads and level.players counts spectators too - unstartable with a
+// 5th connected player. This satisfies the counter directly once the gate
+// is active (var_b366f2dc is the decompiler's hash name for it, resolved by
+// the EZZ compiler). Everyone should be in the undercroft when it fires.
+function zm8_cmd_bossfight(args)
+{
+    mapname = getdvarstring("mapname");
+
+    if (mapname != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_bossfight only works on Der Eisendrache");
+        return;
+    }
+
+    if (isdefined(level.flag) && isdefined(level.flag["boss_fight_begin"]) && level.flag["boss_fight_begin"])
+    {
+        zm8_announce("^3zm8: the boss fight has already started");
+        return;
+    }
+
+    if (!isdefined(level.var_b366f2dc))
+    {
+        zm8_announce("^3zm8: boss fight is not ready - finish the earlier quest steps first");
+        return;
+    }
+
+    zm8_announce("^2zm8: starting the boss fight - everyone to the undercroft!");
+    level.var_b366f2dc = level.players.size;
 }
 
 function zm8_cmd_allperks(args)

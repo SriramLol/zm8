@@ -91,6 +91,13 @@ zm8_autospawn       toggle auto-spawn: mid-round joiners spawn in
                     penalty) - use zm8_spawn to bring them back early.
                     (default: ON each game)
 zm8_autospawn 1 / 0 explicitly on / off
+zm8_bossfight       Der Eisendrache only: force-start the final
+                    boss fight. The stock ritual (everyone plants
+                    their DG-4 on the 4 pads at once) can never
+                    finish with 5+ players connected - the game
+                    wants one pad per connected player but the map
+                    only has 4. Get everyone into the undercroft
+                    first, then run this.
 Toggles reset to these defaults every new game. Turning allperks off
 mid-game keeps perks people already have; they lose them normally on
 downs.
