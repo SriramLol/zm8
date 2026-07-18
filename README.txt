@@ -91,31 +91,34 @@ zm8_autospawn       toggle auto-spawn: mid-round joiners spawn in
                     penalty) - use zm8_spawn to bring them back early.
                     (default: ON each game)
 zm8_autospawn 1 / 0 explicitly on / off
-zm8_bossfight       Der Eisendrache only: force-start the final
-                    boss fight. The stock ritual (everyone plants
-                    their DG-4 on the 4 pads at once) can never
-                    finish with 5+ players connected - the game
-                    wants one pad per connected player but the map
-                    only has 4. Get everyone into the undercroft
-                    first, then run this.
-zm8_eecomplete      Der Eisendrache only, TESTING CHEAT: skip the
-                    entire main quest straight to boss-ready. The
-                    pyramid rises in the undercroft and its canister
-                    step is auto-pressed; once "boss gate arming"
-                    shows, zm8_bossfight will work. Skipped quest
-                    flags stay unset, so the ending cinematic may
-                    not play after the boss dies.
-zm8_bows [element]  Der Eisendrache cheat: give every living player
-                    an upgraded bow with full ammo. Element: fire,
-                    void, storm or wolf; no arg = mix of all four.
-zm8_ragnarok        Der Eisendrache cheat: give every living player
-                    the Ragnarok DG-4 (needed for the boss pads).
-zm8_gum <name>      Cheat, any map: give the host any GobbleGum
-                    instantly, e.g. zm8_gum shopping free. Names as
-                    in zm8/available_gums.txt.
+zm8_gum <name>      Cheat: give the host any GobbleGum instantly,
+                    e.g. zm8_gum shopping free. Names as in
+                    zm8/available_gums.txt.
 Toggles reset to these defaults every new game. Turning allperks off
 mid-game keeps perks people already have; they lose them normally on
 downs.
+
+DER EISENDRACHE COMMANDS (zm8_de_*)
+-----------------------------------
+Map-specific commands carry a map prefix and no-op on other maps.
+
+zm8_de_bossfight    force-start the final boss fight. The stock
+                    ritual (everyone plants their DG-4 on the 4 pads
+                    at once) can never finish with 5+ players
+                    connected - the game wants one pad per connected
+                    player but the map only has 4. Get everyone into
+                    the undercroft first, then run this.
+zm8_de_eecomplete   TESTING CHEAT: skip the entire main quest
+                    straight to boss-ready. The pyramid rises in the
+                    undercroft and its canister step is auto-pressed;
+                    once "boss gate arming" shows, zm8_de_bossfight
+                    will work. Skipped quest flags stay unset, so the
+                    ending cinematic may not play after the boss dies.
+zm8_de_bows [elem]  cheat: give every living player an upgraded bow
+                    with full ammo. Element: fire, void, storm or
+                    wolf; no arg = mix of all four.
+zm8_de_ragnarok     cheat: give every living player the Ragnarok
+                    DG-4 (needed for the boss pads).
 
 
 KNOWN LIMITATIONS

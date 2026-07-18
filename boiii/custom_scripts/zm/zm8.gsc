@@ -97,28 +97,35 @@ function zm8_powerup_pool_fixer()
     }
 }
 
-// host console commands:
+// host console commands, any map:
 //   zm8_allperks  [0|1]  (no arg = toggle) - permanent all-perks
 //   zm8_spawn            - force every waiting spectator to spawn in now
 //   zm8_autospawn [0|1]  (no arg = toggle) - auto-spawn mid-round joiners
-//   zm8_bossfight        - Der Eisendrache: force-start the final boss fight
-//   zm8_eecomplete       - Der Eisendrache TEST cheat: skip the whole main
-//                          quest to boss-ready (then use zm8_bossfight)
-//   zm8_bows [element]   - DE cheat: give everyone an upgraded bow
-//                          (fire/void/storm/wolf; no arg = mix of all four)
-//   zm8_ragnarok         - DE cheat: give everyone the Ragnarok DG-4
 //   zm8_gum <name>       - cheat: give the host any gum right now
 //                          (e.g. zm8_gum shopping free)
+//
+// Der Eisendrache (zm_castle) - guarded by mapname, no-ops elsewhere:
+//   zm8_de_eecomplete     - TEST cheat: skip the whole main quest to
+//                           boss-ready (then use zm8_de_bossfight)
+//   zm8_de_bossfight      - force-start the final boss fight
+//   zm8_de_bows [element] - cheat: give everyone an upgraded bow
+//                           (fire/void/storm/wolf; no arg = mix of all four)
+//   zm8_de_ragnarok       - cheat: give everyone the Ragnarok DG-4
+//
+// Map-specific commands use a zm8_<map>_ prefix and live in their own
+// section further down; add future maps (soe, moon, ...) the same way.
 autoexec function zm8_register_commands()
 {
     addcommand("zm8_allperks", &zm8_cmd_allperks);
     addcommand("zm8_spawn", &zm8_cmd_spawn);
     addcommand("zm8_autospawn", &zm8_cmd_autospawn);
-    addcommand("zm8_bossfight", &zm8_cmd_bossfight);
-    addcommand("zm8_eecomplete", &zm8_cmd_eecomplete);
-    addcommand("zm8_bows", &zm8_cmd_bows);
-    addcommand("zm8_ragnarok", &zm8_cmd_ragnarok);
     addcommand("zm8_gum", &zm8_cmd_gum);
+
+    // Der Eisendrache
+    addcommand("zm8_de_eecomplete", &zm8_de_cmd_eecomplete);
+    addcommand("zm8_de_bossfight", &zm8_de_cmd_bossfight);
+    addcommand("zm8_de_bows", &zm8_de_cmd_bows);
+    addcommand("zm8_de_ragnarok", &zm8_de_cmd_ragnarok);
 }
 
 // Hand the host (player 0 on a listen server) any gum via the stock
@@ -161,17 +168,17 @@ function zm8_cmd_gum(args)
 
 // Testing cheat. Setting the "boss_fight_ready" flag is all that launches the
 // boss sequence (pyramid rise in the undercroft, then the pad gate that
-// zm8_bossfight releases) - the fight uses none of the earlier quest state,
+// zm8_de_bossfight releases) - the fight uses none of the earlier quest state,
 // and the keeper AI the real quest spawns is deleted again before this flag
 // in a legit run. The one physical leftover is the raised pyramid ramps the
 // ceremony normally lowers, so lower them here the same way. Skipped-over
 // quest flags stay unset, so the ending cinematic after the boss may not
 // play in a skipped run.
-function zm8_cmd_eecomplete(args)
+function zm8_de_cmd_eecomplete(args)
 {
     if (getdvarstring("mapname") != "zm_castle")
     {
-        zm8_announce("^1zm8: zm8_eecomplete only works on Der Eisendrache");
+        zm8_announce("^1zm8: zm8_de_eecomplete only works on Der Eisendrache");
         return;
     }
 
@@ -201,7 +208,7 @@ function zm8_cmd_eecomplete(args)
     // the pyramid-open part of the boss sequence blocks on this time-travel
     // quest flag, then on a use-press at the broken canister on the pyramid
     level scripts\shared\flag_shared::set("mpd_canister_replacement");
-    level thread zm8_auto_press_canister();
+    level thread zm8_de_auto_press_canister();
 
     level scripts\shared\flag_shared::set("boss_fight_ready");
 }
@@ -209,7 +216,7 @@ function zm8_cmd_eecomplete(args)
 // The boss sequence registers a unitrigger on the "canister_2" struct and
 // waits for its "trigger_activated" notify before opening the pyramid and
 // arming the pad gate. Press it for the team once it appears.
-function zm8_auto_press_canister()
+function zm8_de_auto_press_canister()
 {
     level endon("end_game");
 
@@ -240,17 +247,17 @@ function zm8_auto_press_canister()
         s_canister notify("trigger_activated", getplayers()[0]);
     }
 
-    zm8_announce("^2zm8: pyramid opening - boss gate arming, zm8_bossfight is ready soon");
+    zm8_announce("^2zm8: pyramid opening - boss gate arming, zm8_de_bossfight is ready soon");
 }
 
 // Give every player an upgraded elemental bow, mirroring the stock upgrade
 // handover: take any bow variant they hold, free a weapon slot if full,
 // give the upgrade with full ammo.
-function zm8_cmd_bows(args)
+function zm8_de_cmd_bows(args)
 {
     if (getdvarstring("mapname") != "zm_castle")
     {
-        zm8_announce("^1zm8: zm8_bows only works on Der Eisendrache");
+        zm8_announce("^1zm8: zm8_de_bows only works on Der Eisendrache");
         return;
     }
 
@@ -264,7 +271,7 @@ function zm8_cmd_bows(args)
 
     if (isdefined(args) && args.size >= 1)
     {
-        forced = zm8_bow_element_from_name(args[0]);
+        forced = zm8_de_bow_element_from_name(args[0]);
 
         if (!isdefined(forced))
         {
@@ -291,13 +298,13 @@ function zm8_cmd_bows(args)
             element = elements[i % 4];
         }
 
-        player zm8_give_bow(element);
+        player zm8_de_give_bow(element);
     }
 
     zm8_announce("^2zm8: upgraded bows handed out");
 }
 
-function zm8_bow_element_from_name(raw)
+function zm8_de_bow_element_from_name(raw)
 {
     raw = tolower(raw);
 
@@ -324,7 +331,7 @@ function zm8_bow_element_from_name(raw)
     return undefined;
 }
 
-function zm8_give_bow(element)
+function zm8_de_give_bow(element)
 {
     variants = [];
     variants[0] = "elemental_bow";
@@ -367,11 +374,11 @@ function zm8_give_bow(element)
 
 // Give every player the Ragnarok DG-4 exactly like the stock pickup trigger:
 // weapon_give + full gadget power + gravityspikes state 2 ("has it").
-function zm8_cmd_ragnarok(args)
+function zm8_de_cmd_ragnarok(args)
 {
     if (getdvarstring("mapname") != "zm_castle")
     {
-        zm8_announce("^1zm8: zm8_ragnarok only works on Der Eisendrache");
+        zm8_announce("^1zm8: zm8_de_ragnarok only works on Der Eisendrache");
         return;
     }
 
@@ -402,19 +409,22 @@ function zm8_cmd_ragnarok(args)
     zm8_announce("^2zm8: gave the Ragnarok DG-4 to " + count + " player(s)");
 }
 
-// Der Eisendrache only: the final boss fight starts when the count of
+// ========================== Der Eisendrache (zm8_de_*) ==========================
+// Everything below is zm_castle-only and guarded by mapname.
+
+// The final boss fight starts when the count of
 // claimed gravity-spike pads reaches level.players.size, but the map has
 // only 4 pads and level.players counts spectators too - unstartable with a
 // 5th connected player. This satisfies the counter directly once the gate
 // is active (var_b366f2dc is the decompiler's hash name for it, resolved by
 // the EZZ compiler). Everyone should be in the undercroft when it fires.
-function zm8_cmd_bossfight(args)
+function zm8_de_cmd_bossfight(args)
 {
     mapname = getdvarstring("mapname");
 
     if (mapname != "zm_castle")
     {
-        zm8_announce("^1zm8: zm8_bossfight only works on Der Eisendrache");
+        zm8_announce("^1zm8: zm8_de_bossfight only works on Der Eisendrache");
         return;
     }
 
