@@ -43,16 +43,23 @@ autoexec function zm8_init()
     zm8_announce("^2zm8 mod loaded - 8 player cap active");
 
     level.zm8_allperks = zm8_config_enabled("allperks");
+    level.zm8_autospawn = zm8_config_enabled("autospawn");
 
     if (level.zm8_allperks)
     {
         zm8_announce("^3zm8: permanent all-perks is ON");
     }
 
+    if (level.zm8_autospawn)
+    {
+        zm8_announce("^3zm8: mid-round auto-spawn is ON");
+    }
+
     level thread zm8_character_index_fixer();
     level thread zm8_bgb_pack_fixer();
     level thread zm8_allperks_monitor();
     level thread zm8_powerup_pool_fixer();
+    level thread zm8_autospawn_monitor();
     level thread zm8_zombie_counter();
 }
 
@@ -99,10 +106,15 @@ function zm8_powerup_pool_fixer()
     }
 }
 
-// host console command: zm8_allperks [0|1]  (no arg = toggle)
+// host console commands:
+//   zm8_allperks  [0|1]  (no arg = toggle) - permanent all-perks
+//   zm8_spawn            - force every waiting spectator to spawn in now
+//   zm8_autospawn [0|1]  (no arg = toggle) - auto-spawn mid-round joiners
 autoexec function zm8_register_commands()
 {
     addcommand("zm8_allperks", &zm8_cmd_allperks);
+    addcommand("zm8_spawn", &zm8_cmd_spawn);
+    addcommand("zm8_autospawn", &zm8_cmd_autospawn);
 }
 
 function zm8_cmd_allperks(args)
@@ -125,6 +137,113 @@ function zm8_cmd_allperks(args)
     {
         zm8_write_config("allperks", "0");
         zm8_announce("^3zm8: permanent all-perks OFF (perks already given stay until lost)");
+    }
+}
+
+// Stock behavior: mid-round joiners (and bled-out players) sit in spectate
+// until _zm::spectators_respawn() runs, which only happens between rounds.
+// zm8_spawn pushes them through the exact same respawn path immediately.
+// zm8_spawn includes bled-out players (early "revive"); autospawn only takes
+// fresh joiners so dying keeps its penalty.
+function zm8_cmd_spawn(args)
+{
+    level thread zm8_force_spawn_spectators(true, true);
+}
+
+function zm8_cmd_autospawn(args)
+{
+    enable = !(isdefined(level.zm8_autospawn) && level.zm8_autospawn);
+
+    if (isdefined(args) && args.size >= 1)
+    {
+        enable = (args[0] == "1");
+    }
+
+    level.zm8_autospawn = enable;
+
+    if (enable)
+    {
+        zm8_write_config("autospawn", "1");
+        zm8_announce("^3zm8: mid-round auto-spawn ON");
+    }
+    else
+    {
+        zm8_write_config("autospawn", "0");
+        zm8_announce("^3zm8: mid-round auto-spawn OFF (joiners spawn next round, or via zm8_spawn)");
+    }
+}
+
+function zm8_autospawn_monitor()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        if (isdefined(level.zm8_autospawn) && level.zm8_autospawn)
+        {
+            level thread zm8_force_spawn_spectators(false, false);
+        }
+
+        wait 3;
+    }
+}
+
+// level.game_mode_spawn_player_logic is what sends a mid-round joiner
+// straight back to spectate after onSpawnPlayer, so blank it while we force
+// the spawn, then restore. include_bled_out also spawns players who died and
+// bled out this round (player_initialized = they have spawned before).
+function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
+{
+    if (isdefined(level.intermission) && level.intermission)
+    {
+        return;
+    }
+
+    if (isdefined(level.zm8_force_spawn_busy) && level.zm8_force_spawn_busy)
+    {
+        return;
+    }
+    level.zm8_force_spawn_busy = true;
+
+    saved_logic = level.game_mode_spawn_player_logic;
+    level.game_mode_spawn_player_logic = undefined;
+
+    count = 0;
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || player.sessionstate != "spectator")
+        {
+            continue;
+        }
+
+        // the stock respawn path needs a spawn struct; joiners get one in
+        // onSpawnPlayer just before being sent to spectate
+        if (!isdefined(player.spectator_respawn))
+        {
+            continue;
+        }
+
+        if (!include_bled_out && isdefined(player.player_initialized) && player.player_initialized)
+        {
+            continue;
+        }
+
+        zm8_announce("^2zm8: spawning in " + player.name);
+        player scripts\zm\_zm::spectator_respawn_player();
+        count++;
+        wait 0.25;
+    }
+
+    level.game_mode_spawn_player_logic = saved_logic;
+    level.zm8_force_spawn_busy = false;
+
+    if (count == 0 && announce_if_none)
+    {
+        zm8_announce("^3zm8: no spectators waiting to spawn");
     }
 }
 
@@ -223,11 +342,50 @@ function zm8_config_enabled(key)
     return false;
 }
 
-// single-key config for now; rewritten wholesale on toggle
+// update one key, keep the rest of the file
 function zm8_write_config(key, value)
 {
     mkdir("zm8");
-    writefile("zm8/config.txt", key + "=" + value + "\n");
+
+    out = "";
+    written = false;
+
+    if (fileexists("zm8/config.txt"))
+    {
+        content = readfile("zm8/config.txt");
+
+        if (isdefined(content) && content != "")
+        {
+            lines = strtok(content, "\n\r");
+
+            for (i = 0; i < lines.size; i++)
+            {
+                if (lines[i].size == 0)
+                {
+                    continue;
+                }
+
+                parts = strtok(lines[i], "=");
+
+                if (parts.size >= 2 && tolower(parts[0]) == key)
+                {
+                    out += key + "=" + value + "\n";
+                    written = true;
+                }
+                else
+                {
+                    out += lines[i] + "\n";
+                }
+            }
+        }
+    }
+
+    if (!written)
+    {
+        out += key + "=" + value + "\n";
+    }
+
+    writefile("zm8/config.txt", out);
 }
 
 // GobbleGums for players 5-8: the gum scripts have no player cap, but the

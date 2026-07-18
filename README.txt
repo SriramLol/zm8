@@ -81,8 +81,16 @@ HOST CONSOLE COMMANDS (~ key)
 -----------------------------
 zm8_allperks        toggle permanent all-perks for everyone
 zm8_allperks 1 / 0  explicitly on / off
-The setting persists between games. Turning it off mid-game keeps
-perks people already have; they lose them normally on downs.
+zm8_spawn           spawn in everyone waiting in spectate right now
+                    (mid-round joiners AND bled-out players - works
+                    as an early revive for the dead)
+zm8_autospawn       toggle auto-spawn: mid-round joiners spawn in
+                    within ~3s instead of waiting for next round.
+                    Bled-out players still wait (death keeps its
+                    penalty) - use zm8_spawn to bring them back early.
+zm8_autospawn 1 / 0 explicitly on / off
+The settings persist between games. Turning allperks off mid-game
+keeps perks people already have; they lose them normally on downs.
 
 
 KNOWN LIMITATIONS
