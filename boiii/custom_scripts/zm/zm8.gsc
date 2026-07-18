@@ -470,7 +470,50 @@ function zm8_de_cmd_bossfight(args)
     }
 
     zm8_announce("^2zm8: starting the boss fight - everyone to the undercroft!");
+
+    // At fight start the game refunds each player's "ritual" Ragnarok plant
+    // (force-retrieve + power cut to 25%). After a forced start there was no
+    // ritual plant, so that cleanup thread eats the player's FIRST real
+    // plant of the fight instead. It can't be killed externally, so guard
+    // every player who has no spikes planted right now.
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player))
+        {
+            continue;
+        }
+
+        if (isdefined(player.b_gravity_trap_spikes_in_ground) && player.b_gravity_trap_spikes_in_ground)
+        {
+            continue;
+        }
+
+        player thread zm8_de_replant_guard();
+    }
+
     level.var_b366f2dc = level.players.size;
+}
+
+function zm8_de_replant_guard()
+{
+    self endon("disconnect");
+    level endon("end_game");
+
+    self waittill("gravity_trap_planted");
+
+    // the stock cleanup force-retrieves roughly a second after the plant
+    wait 1.6;
+
+    if (!(isdefined(self.b_gravity_trap_spikes_in_ground) && self.b_gravity_trap_spikes_in_ground))
+    {
+        wpn = getweapon("hero_gravityspikes_melee");
+        self gadgetpowerset(self gadgetgetslot(wpn), 100);
+        zm8_announce("^3zm8: " + self.name + "'s first plant got refunded by the fight start - plant again now");
+    }
 }
 
 function zm8_cmd_allperks(args)
