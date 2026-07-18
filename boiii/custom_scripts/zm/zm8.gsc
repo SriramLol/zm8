@@ -410,6 +410,17 @@ function zm8_de_cmd_ragnarok(args)
             continue;
         }
 
+        // the boss stun phase picks a random player's trap FX entity, which
+        // only exists after a first plant - seed it so a never-planted
+        // player (or 5th-8th) can't crash that pick. The weapon script
+        // repositions it on every real plant, so pre-seeding is harmless.
+        if (!isdefined(player.mdl_gravity_trap_fx_source))
+        {
+            mdl_fx = spawn("script_model", player.origin);
+            mdl_fx setmodel("tag_origin");
+            player.mdl_gravity_trap_fx_source = mdl_fx;
+        }
+
         if (isdefined(player.gravityspikes_state) && player.gravityspikes_state != 0)
         {
             continue;
