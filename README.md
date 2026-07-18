@@ -1,0 +1,60 @@
+# zm8 — 8-Player Zombies for Black Ops III
+
+Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map — stock and DLC (Der Eisendrache, The Giant, Origins, ...). No mod menu, no workshop subscription. Built for the BOIII ("EZZ") client.
+
+**Only the host needs this mod.** Friends install nothing — they join through the server browser or direct connect.
+
+## Features
+
+- Up to 8 players in classic zombies on all stock + DLC maps
+- Zombie counter HUD (top left): zombies left to spawn + currently alive
+- GobbleGums for players 5–8 — the game normally gives them none; they get a shared pack you pick with the included dropdown gum picker (type-to-filter)
+- Optional **permanent all-perks** for everyone (host console toggle, persists between games)
+- Carpenter power-up removed from the drop pool (crash prevention)
+
+## How it works
+
+The 4-player limit in classic zombies is script-enforced, not an engine limit — `_zm.gsc` ends the game when a 5th player is detected, but allows 8 for Treyarch's own Grief mode, meaning the engine officially supports 8 zombies clients. This mod re-caps that check at 8 via the BOIII client's `detour` feature, fixes character assignment for slots 5–8, and swaps in GobbleGum packs for players the engine gives none (their loadout data only exists for 4 slots). Everything runs host-side in GSC; effects reach joiners through normal game networking.
+
+## Installation
+
+1. Find your Black Ops III game folder — the one containing `boiii.exe`.
+2. Copy the contents of this repo (or the release zip) into it, keeping the folder structure:
+   ```
+   <BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+   <BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
+   <BO3 folder>\launch-zm8.bat
+   <BO3 folder>\zm8-gum-picker.bat
+   <BO3 folder>\zm8-gum-picker.ps1
+   ```
+3. Done — nothing is replaced, the mod only adds files.
+
+## Hosting
+
+1. Start the game with **`launch-zm8.bat`** (not `boiii.exe` directly — the client wipes extra UI files at startup; the bat re-installs the 8-slot lobby patch after launch).
+2. Zombies → Private Game → any map → **Configure Game Ranking → non-ranked** (custom scripts only load in non-ranked matches).
+3. Start. ~6 seconds in you'll see **"zm8 mod loaded - 8 player cap active"** and the zombie counter.
+4. Friends join via server browser or `connect <your-ip>` — up to 8 total.
+
+## GobbleGums for players 5–8
+
+Run `zm8-gum-picker.bat` → pick up to 5 gums (type to filter, `per` → Perkaholic) → Save. The per-map gum list refreshes each time you play a map (`boiii\scriptdata\zm8\available_gums.txt`). Gums marked `(mega)` are experimental. No pack saved → default classics. You can also edit `boiii\scriptdata\zm8\gum_pack.txt` by hand — one gum per line, friendly names work.
+
+## Console commands (host, `~`)
+
+| Command | Effect |
+|---|---|
+| `zm8_allperks` | toggle permanent all-perks for everyone |
+| `zm8_allperks 1` / `0` | explicitly on / off |
+
+## Known limitations
+
+- Scoreboard/HUD is built for 4 players; extras may not show on some screens (gameplay unaffected)
+- Players 5–8 reuse the map's 4 character models/voices
+- Splitscreen remains 2 players max (engine limit)
+- **Do not exceed 8 players** — beyond 8 the engine times everyone out
+- Classic mode past 4 players was never QA'd by Treyarch; expect occasional weirdness
+
+## Credits
+
+Research references: [BO3-18-Player-Zombies](https://github.com/olie304/BO3-18-Player-Zombies) (prior art on the player-cap override), [zeroy99/bo3_modtools](https://github.com/zeroy99/bo3_modtools) (stock script source), [shiversoftdev/t7-source](https://github.com/shiversoftdev/t7-source) (decompiled GobbleGum scripts), and the BOIII client's GSC scripting docs.
