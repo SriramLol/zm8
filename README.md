@@ -50,7 +50,10 @@ Run `zm8-gum-picker.bat` → pick up to 5 gums (type to filter, `per` → Perkah
 | `zm8_autospawn` | toggle auto-spawn: mid-round joiners spawn in within ~3s instead of waiting for the next round (bled-out players still wait, so dying keeps its penalty). Default: on |
 | `zm8_autospawn 1` / `0` | explicitly on / off |
 | `zm8_bossfight` | Der Eisendrache only: force-start the final boss fight. The stock start ritual (everyone plants Ragnarok DG-4s on the 4 pads at once) can never complete with 5+ players connected, because the game demands one pad per connected player but the map only has 4. Get everyone to the undercroft first, then run this |
-| `zm8_eecomplete` | Der Eisendrache only, testing cheat: skip the entire main quest straight to boss-ready (the pyramid rises in the undercroft). Follow with `zm8_bossfight` to start the fight. Skipped quest flags stay unset, so the ending cinematic may not play after the boss dies |
+| `zm8_eecomplete` | Der Eisendrache only, testing cheat: skip the entire main quest straight to boss-ready. The pyramid rises in the undercroft and its canister step is auto-pressed; once "boss gate arming" appears, `zm8_bossfight` will work. Skipped quest flags stay unset, so the ending cinematic may not play after the boss dies |
+| `zm8_bows [element]` | Der Eisendrache cheat: give every living player an upgraded bow with full ammo. Element: `fire`, `void`, `storm` or `wolf`; no argument = a mix of all four across the team |
+| `zm8_ragnarok` | Der Eisendrache cheat: give every living player the Ragnarok DG-4 (needed to plant on the boss pads) |
+| `zm8_gum <name>` | Cheat, any map: give the host any GobbleGum instantly, e.g. `zm8_gum shopping free`. Names as in `zm8/available_gums.txt` |
 
 Toggles reset to their defaults every new game.
 

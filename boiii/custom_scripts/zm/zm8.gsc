@@ -104,6 +104,11 @@ function zm8_powerup_pool_fixer()
 //   zm8_bossfight        - Der Eisendrache: force-start the final boss fight
 //   zm8_eecomplete       - Der Eisendrache TEST cheat: skip the whole main
 //                          quest to boss-ready (then use zm8_bossfight)
+//   zm8_bows [element]   - DE cheat: give everyone an upgraded bow
+//                          (fire/void/storm/wolf; no arg = mix of all four)
+//   zm8_ragnarok         - DE cheat: give everyone the Ragnarok DG-4
+//   zm8_gum <name>       - cheat: give the host any gum right now
+//                          (e.g. zm8_gum shopping free)
 autoexec function zm8_register_commands()
 {
     addcommand("zm8_allperks", &zm8_cmd_allperks);
@@ -111,6 +116,47 @@ autoexec function zm8_register_commands()
     addcommand("zm8_autospawn", &zm8_cmd_autospawn);
     addcommand("zm8_bossfight", &zm8_cmd_bossfight);
     addcommand("zm8_eecomplete", &zm8_cmd_eecomplete);
+    addcommand("zm8_bows", &zm8_cmd_bows);
+    addcommand("zm8_ragnarok", &zm8_cmd_ragnarok);
+    addcommand("zm8_gum", &zm8_cmd_gum);
+}
+
+// Hand the host (player 0 on a listen server) any gum via the stock
+// _zm_bgb::give API - same path the machine uses, so HUD and activation
+// behave normally. Friendly or internal names both work.
+function zm8_cmd_gum(args)
+{
+    if (!isdefined(args) || args.size < 1)
+    {
+        zm8_announce("^3zm8: usage: zm8_gum <gum name> - names in zm8/available_gums.txt");
+        return;
+    }
+
+    raw = args[0];
+
+    for (i = 1; i < args.size; i++)
+    {
+        raw += " " + args[i];
+    }
+
+    gum = zm8_normalize_gum_name(zm8_strip_marker(raw));
+
+    if (!isdefined(level.bgb) || !isdefined(level.bgb[gum]))
+    {
+        zm8_announce("^1zm8: unknown gum '" + raw + "' - see zm8/available_gums.txt");
+        return;
+    }
+
+    players = getplayers();
+
+    if (players.size == 0)
+    {
+        return;
+    }
+
+    host = players[0];
+    host scripts\zm\_zm_bgb::give(gum);
+    zm8_announce("^2zm8: gave " + zm8_friendly_gum_name(gum) + " to " + host.name);
 }
 
 // Testing cheat. Setting the "boss_fight_ready" flag is all that launches the
@@ -152,7 +198,208 @@ function zm8_cmd_eecomplete(args)
         ramps[i] moveto(ramps[i].origin - (0, 0, 96), 3);
     }
 
+    // the pyramid-open part of the boss sequence blocks on this time-travel
+    // quest flag, then on a use-press at the broken canister on the pyramid
+    level scripts\shared\flag_shared::set("mpd_canister_replacement");
+    level thread zm8_auto_press_canister();
+
     level scripts\shared\flag_shared::set("boss_fight_ready");
+}
+
+// The boss sequence registers a unitrigger on the "canister_2" struct and
+// waits for its "trigger_activated" notify before opening the pyramid and
+// arming the pad gate. Press it for the team once it appears.
+function zm8_auto_press_canister()
+{
+    level endon("end_game");
+
+    s_canister = scripts\codescripts\struct::get("canister_2", "targetname");
+
+    if (!isdefined(s_canister))
+    {
+        zm8_announce("^1zm8: canister_2 struct not found - press the canister prompt at the pyramid manually");
+        return;
+    }
+
+    // create_unitrigger stamps .s_unitrigger on the struct when it registers
+    for (t = 0; t < 240 && !isdefined(s_canister.s_unitrigger); t++)
+    {
+        wait 0.5;
+    }
+
+    if (!isdefined(s_canister.s_unitrigger))
+    {
+        zm8_announce("^1zm8: canister never appeared - boss gate may not arm");
+        return;
+    }
+
+    // a few notifies in case the listener arms a beat after registration
+    for (i = 0; i < 5; i++)
+    {
+        wait 1;
+        s_canister notify("trigger_activated", getplayers()[0]);
+    }
+
+    zm8_announce("^2zm8: pyramid opening - boss gate arming, zm8_bossfight is ready soon");
+}
+
+// Give every player an upgraded elemental bow, mirroring the stock upgrade
+// handover: take any bow variant they hold, free a weapon slot if full,
+// give the upgrade with full ammo.
+function zm8_cmd_bows(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_bows only works on Der Eisendrache");
+        return;
+    }
+
+    elements = [];
+    elements[0] = "storm";
+    elements[1] = "demongate";
+    elements[2] = "wolf_howl";
+    elements[3] = "rune_prison";
+
+    forced = undefined;
+
+    if (isdefined(args) && args.size >= 1)
+    {
+        forced = zm8_bow_element_from_name(args[0]);
+
+        if (!isdefined(forced))
+        {
+            zm8_announce("^1zm8: unknown bow '" + args[0] + "' - use fire, void, storm or wolf");
+            return;
+        }
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        element = forced;
+
+        if (!isdefined(element))
+        {
+            element = elements[i % 4];
+        }
+
+        player zm8_give_bow(element);
+    }
+
+    zm8_announce("^2zm8: upgraded bows handed out");
+}
+
+function zm8_bow_element_from_name(raw)
+{
+    raw = tolower(raw);
+
+    if (raw == "fire" || raw == "demongate" || raw == "demon")
+    {
+        return "demongate";
+    }
+
+    if (raw == "void" || raw == "rune_prison" || raw == "rune")
+    {
+        return "rune_prison";
+    }
+
+    if (raw == "storm" || raw == "lightning")
+    {
+        return "storm";
+    }
+
+    if (raw == "wolf" || raw == "wolf_howl")
+    {
+        return "wolf_howl";
+    }
+
+    return undefined;
+}
+
+function zm8_give_bow(element)
+{
+    variants = [];
+    variants[0] = "elemental_bow";
+    variants[1] = "elemental_bow_storm";
+    variants[2] = "elemental_bow_demongate";
+    variants[3] = "elemental_bow_wolf_howl";
+    variants[4] = "elemental_bow_rune_prison";
+
+    had_bow = false;
+
+    for (i = 0; i < variants.size; i++)
+    {
+        w_old = getweapon(variants[i]);
+
+        if (self hasweapon(w_old))
+        {
+            self scripts\zm\_zm_weapons::weapon_take(w_old);
+            had_bow = true;
+        }
+    }
+
+    // stock base-bow pickup frees a slot by taking the held weapon when full
+    if (!had_bow)
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+        }
+    }
+
+    w_bow = getweapon("elemental_bow_" + element);
+    self scripts\zm\_zm_weapons::weapon_give(w_bow, 0, 0, 1);
+    self setweaponammostock(w_bow, w_bow.maxammo);
+    self setweaponammoclip(w_bow, w_bow.clipsize);
+    self switchtoweapon(w_bow);
+}
+
+// Give every player the Ragnarok DG-4 exactly like the stock pickup trigger:
+// weapon_give + full gadget power + gravityspikes state 2 ("has it").
+function zm8_cmd_ragnarok(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_ragnarok only works on Der Eisendrache");
+        return;
+    }
+
+    wpn = getweapon("hero_gravityspikes_melee");
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        if (isdefined(player.gravityspikes_state) && player.gravityspikes_state != 0)
+        {
+            continue;
+        }
+
+        player scripts\zm\_zm_weapons::weapon_give(wpn, 0, 1);
+        player gadgetpowerset(player gadgetgetslot(wpn), 100);
+        player scripts\zm\_zm_weap_gravityspikes::update_gravityspikes_state(2);
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave the Ragnarok DG-4 to " + count + " player(s)");
 }
 
 // Der Eisendrache only: the final boss fight starts when the count of

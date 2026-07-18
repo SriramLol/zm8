@@ -99,11 +99,20 @@ zm8_bossfight       Der Eisendrache only: force-start the final
                     only has 4. Get everyone into the undercroft
                     first, then run this.
 zm8_eecomplete      Der Eisendrache only, TESTING CHEAT: skip the
-                    entire main quest straight to boss-ready (the
-                    pyramid rises in the undercroft). Follow with
-                    zm8_bossfight to start the fight. Skipped quest
+                    entire main quest straight to boss-ready. The
+                    pyramid rises in the undercroft and its canister
+                    step is auto-pressed; once "boss gate arming"
+                    shows, zm8_bossfight will work. Skipped quest
                     flags stay unset, so the ending cinematic may
                     not play after the boss dies.
+zm8_bows [element]  Der Eisendrache cheat: give every living player
+                    an upgraded bow with full ammo. Element: fire,
+                    void, storm or wolf; no arg = mix of all four.
+zm8_ragnarok        Der Eisendrache cheat: give every living player
+                    the Ragnarok DG-4 (needed for the boss pads).
+zm8_gum <name>      Cheat, any map: give the host any GobbleGum
+                    instantly, e.g. zm8_gum shopping free. Names as
+                    in zm8/available_gums.txt.
 Toggles reset to these defaults every new game. Turning allperks off
 mid-game keeps perks people already have; they lose them normally on
 downs.
