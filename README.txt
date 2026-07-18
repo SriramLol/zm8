@@ -120,6 +120,27 @@ zm8_de_bows [elem]  cheat: give every living player an upgraded bow
 zm8_de_ragnarok     cheat: give every living player the Ragnarok
                     DG-4 (needed for the boss pads).
 
+ORIGINS COMMANDS (zm8_origins_*)
+--------------------------------
+No hard player-count block in the Origins quest (gates count staffs,
+not players), but step 6 (One-Inch Punch) requires EVERY connected
+player - spectators included - to earn the upgraded fist.
+
+zm8_origins_eenext  TESTING CHEAT: force-complete the current main
+                    quest step via the game's own sidequest API. Run
+                    repeatedly to walk the quest forward. Before the
+                    quest starts it skips the all-staffs-crafted
+                    gate (all 6 generators must still be captured).
+                    Skipped steps may leave quest props missing.
+zm8_origins_punch   cheat: give every living player the upgraded
+                    One-Inch Punch and satisfy the step-6 gate.
+zm8_origins_staffs [element]
+                    cheat: give every living player an upgraded
+                    staff with full ammo. Element: fire, ice, wind
+                    or lightning; no arg = mix. With 5+ players some
+                    staffs are duplicates - holder UI may confuse,
+                    combat works fine.
+
 
 KNOWN LIMITATIONS
 -----------------

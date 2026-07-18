@@ -112,6 +112,16 @@ function zm8_powerup_pool_fixer()
 //                           (fire/void/storm/wolf; no arg = mix of all four)
 //   zm8_de_ragnarok       - cheat: give everyone the Ragnarok DG-4
 //
+// Origins (zm_tomb) - guarded by mapname, no-ops elsewhere:
+//   zm8_origins_eenext    - TEST cheat: force-complete the current main
+//                           quest step (at step_0 it skips the staffs-
+//                           crafted gate; generators must still be on)
+//   zm8_origins_punch     - cheat: give everyone the upgraded One-Inch
+//                           Punch; also satisfies the step-6 gate that
+//                           needs EVERY connected player upgraded
+//   zm8_origins_staffs [element] - cheat: give everyone an upgraded staff
+//                           (fire/ice/wind/lightning; no arg = mix)
+//
 // Map-specific commands use a zm8_<map>_ prefix and live in their own
 // section further down; add future maps (soe, moon, ...) the same way.
 autoexec function zm8_register_commands()
@@ -126,6 +136,11 @@ autoexec function zm8_register_commands()
     addcommand("zm8_de_bossfight", &zm8_de_cmd_bossfight);
     addcommand("zm8_de_bows", &zm8_de_cmd_bows);
     addcommand("zm8_de_ragnarok", &zm8_de_cmd_ragnarok);
+
+    // Origins
+    addcommand("zm8_origins_eenext", &zm8_origins_cmd_eenext);
+    addcommand("zm8_origins_punch", &zm8_origins_cmd_punch);
+    addcommand("zm8_origins_staffs", &zm8_origins_cmd_staffs);
 }
 
 // Hand the host (player 0 on a listen server) any gum via the stock
@@ -1042,4 +1057,228 @@ function zm8_zombie_counter()
 
         wait 0.5;
     }
+}
+
+// ========================== Origins (zm8_origins_*) ==========================
+// Everything below is zm_tomb-only and guarded by mapname.
+//
+// Audit notes for 5-8 players: the quest ("little_girl_lost") is 8 linear
+// stages; each ends with zm_sidequests::stage_completed firing
+// "little_girl_lost_step_N_over". No pad-style hard block like DE, but
+// step 6 waits for flag ee_all_players_upgraded_punch, which is only set
+// when EVERY connected player (spectators included) has b_punch_upgraded -
+// zm8_origins_punch clears that. Only 4 staffs exist for up to 8 players -
+// zm8_origins_staffs hands out duplicates. Players 5-8 all get character
+// index 0 (extra Dempseys) from the map's own assigner; harmless.
+
+// Force-complete the current quest step via the stock sidequest API (fires
+// the same notifies/bookkeeping as a legit completion). At step_0 the quest
+// has not started: it is gated on flags ee_all_staffs_crafted +
+// all_zones_captured; we set the former, but zone capture is live generator
+// state the capture system rewrites, so generators must genuinely be on.
+function zm8_origins_cmd_eenext(args)
+{
+    if (getdvarstring("mapname") != "zm_tomb")
+    {
+        zm8_announce("^1zm8: zm8_origins_eenext only works on Origins");
+        return;
+    }
+
+    if (!isdefined(level._zombie_sidequests) || !isdefined(level._zombie_sidequests["little_girl_lost"]))
+    {
+        zm8_announce("^1zm8: Origins quest system not initialized");
+        return;
+    }
+
+    if (!isdefined(level._cur_stage_name) || level._cur_stage_name == "step_0")
+    {
+        level scripts\shared\flag_shared::set("ee_all_staffs_crafted");
+        zm8_announce("^2zm8: staffs-crafted gate skipped - quest begins once all generators are captured");
+        return;
+    }
+
+    quest = level._zombie_sidequests["little_girl_lost"];
+    stage = quest.stages[level._cur_stage_name];
+
+    if (!isdefined(stage))
+    {
+        zm8_announce("^1zm8: unknown quest stage " + level._cur_stage_name);
+        return;
+    }
+
+    if (isdefined(stage.completed) && stage.completed == 1)
+    {
+        zm8_announce("^3zm8: " + level._cur_stage_name + " is already complete");
+        return;
+    }
+
+    zm8_announce("^2zm8: force-completing " + level._cur_stage_name);
+    scripts\zm\_zm_sidequests::stage_completed("little_girl_lost", level._cur_stage_name);
+}
+
+// Upgraded One-Inch Punch for everyone, via the stock giver thread (handles
+// the flourish, melee slot and element variant). Setting b_punch_upgraded
+// first makes the giver hand out the upgraded fist, and setting the step-6
+// flag directly is what unblocks the quest with spectators connected.
+function zm8_origins_cmd_punch(args)
+{
+    if (getdvarstring("mapname") != "zm_tomb")
+    {
+        zm8_announce("^1zm8: zm8_origins_punch only works on Origins");
+        return;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        player.n_ee_punch_souls = 20;
+        player.b_punch_upgraded = 1;
+
+        if (!isdefined(player.str_punch_element))
+        {
+            player.str_punch_element = "upgraded";
+        }
+
+        player thread scripts\zm\_zm_weap_one_inch_punch::one_inch_punch_melee_attack();
+    }
+
+    if (isdefined(level.flag) && isdefined(level.flag["ee_all_players_upgraded_punch"]) && !level.flag["ee_all_players_upgraded_punch"])
+    {
+        level scripts\shared\flag_shared::set("ee_all_players_upgraded_punch");
+    }
+
+    zm8_announce("^2zm8: upgraded punch given to everyone (step 6 gate satisfied)");
+}
+
+// Give every player an upgraded elemental staff with full ammo. Only 4
+// staffs exist in a normal game, so with 5-8 players this hands out
+// duplicates - the staff charging/holder UI tracks one holder per element,
+// which duplicates will confuse (combat works fine).
+function zm8_origins_cmd_staffs(args)
+{
+    if (getdvarstring("mapname") != "zm_tomb")
+    {
+        zm8_announce("^1zm8: zm8_origins_staffs only works on Origins");
+        return;
+    }
+
+    elements = [];
+    elements[0] = "fire";
+    elements[1] = "water";
+    elements[2] = "air";
+    elements[3] = "lightning";
+
+    forced = undefined;
+
+    if (isdefined(args) && args.size >= 1)
+    {
+        forced = zm8_origins_staff_element_from_name(args[0]);
+
+        if (!isdefined(forced))
+        {
+            zm8_announce("^1zm8: unknown staff '" + args[0] + "' - use fire, ice, wind or lightning");
+            return;
+        }
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        element = forced;
+
+        if (!isdefined(element))
+        {
+            element = elements[i % 4];
+        }
+
+        player zm8_origins_give_staff(element);
+    }
+
+    zm8_announce("^2zm8: upgraded staffs handed out");
+}
+
+function zm8_origins_staff_element_from_name(raw)
+{
+    raw = tolower(raw);
+
+    if (raw == "fire")
+    {
+        return "fire";
+    }
+
+    if (raw == "ice" || raw == "water")
+    {
+        return "water";
+    }
+
+    if (raw == "wind" || raw == "air")
+    {
+        return "air";
+    }
+
+    if (raw == "lightning" || raw == "elec")
+    {
+        return "lightning";
+    }
+
+    return undefined;
+}
+
+function zm8_origins_give_staff(element)
+{
+    variants = [];
+    variants[0] = "staff_air";
+    variants[1] = "staff_fire";
+    variants[2] = "staff_lightning";
+    variants[3] = "staff_water";
+    variants[4] = "staff_air_upgraded";
+    variants[5] = "staff_fire_upgraded";
+    variants[6] = "staff_lightning_upgraded";
+    variants[7] = "staff_water_upgraded";
+
+    had_staff = false;
+
+    for (i = 0; i < variants.size; i++)
+    {
+        w_old = getweapon(variants[i]);
+
+        if (self hasweapon(w_old))
+        {
+            self scripts\zm\_zm_weapons::weapon_take(w_old);
+            had_staff = true;
+        }
+    }
+
+    if (!had_staff)
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+        }
+    }
+
+    w_staff = getweapon("staff_" + element + "_upgraded");
+    self scripts\zm\_zm_weapons::weapon_give(w_staff, 0, 0, 1);
+    self setweaponammostock(w_staff, w_staff.maxammo);
+    self setweaponammoclip(w_staff, w_staff.clipsize);
+    self switchtoweapon(w_staff);
 }

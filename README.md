@@ -64,6 +64,16 @@ Map-specific commands carry a map prefix and no-op on other maps. More maps to c
 | `zm8_de_bows [element]` | cheat: give every living player an upgraded bow with full ammo. Element: `fire`, `void`, `storm` or `wolf`; no argument = a mix of all four across the team |
 | `zm8_de_ragnarok` | cheat: give every living player the Ragnarok DG-4 (needed to plant on the boss pads) |
 
+### Origins commands (`zm8_origins_*`)
+
+Good news from the code audit: unlike Der Eisendrache, the Origins quest has no hard player-count block — every step gate counts staffs/objects (always 4), not players. The one co-op catch: step 6 (One-Inch Punch) requires **every connected player** — spectators included — to earn the upgraded fist.
+
+| Command | Effect |
+|---|---|
+| `zm8_origins_eenext` | testing cheat: force-complete the current main quest step through the game's own sidequest API. Run it repeatedly to walk the quest forward. Before the quest starts it skips the all-staffs-crafted gate (all 6 generators must still be captured). Skipped steps may leave physical quest props missing, so later steps can look odd |
+| `zm8_origins_punch` | cheat: give every living player the upgraded One-Inch Punch and satisfy the step-6 "everyone upgraded" gate |
+| `zm8_origins_staffs [element]` | cheat: give every living player an upgraded staff with full ammo. Element: `fire`, `ice`, `wind` or `lightning`; no argument = a mix across the team. With 5+ players some staffs are duplicates — the per-element holder UI may look confused, combat works fine |
+
 ## Known limitations
 
 - Scoreboard/HUD is built for 4 players; extras may not show on some screens (gameplay unaffected)
