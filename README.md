@@ -44,11 +44,13 @@ Run `zm8-gum-picker.bat` → pick up to 5 gums (type to filter, `per` → Perkah
 
 | Command | Effect |
 |---|---|
-| `zm8_allperks` | toggle permanent all-perks for everyone |
+| `zm8_allperks` | toggle permanent all-perks for everyone (default: off) |
 | `zm8_allperks 1` / `0` | explicitly on / off |
 | `zm8_spawn` | spawn in everyone waiting in spectate right now (mid-round joiners AND bled-out players — an early revive) |
-| `zm8_autospawn` | toggle auto-spawn: mid-round joiners spawn in within ~3s instead of waiting for the next round (bled-out players still wait, so dying keeps its penalty) |
+| `zm8_autospawn` | toggle auto-spawn: mid-round joiners spawn in within ~3s instead of waiting for the next round (bled-out players still wait, so dying keeps its penalty). Default: on |
 | `zm8_autospawn 1` / `0` | explicitly on / off |
+
+Toggles reset to their defaults every new game.
 
 ## Known limitations
 

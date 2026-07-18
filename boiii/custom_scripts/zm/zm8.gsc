@@ -40,20 +40,11 @@ autoexec function zm8_init()
 
     // let the intro blackscreen pass so the print is visible
     wait 6;
-    zm8_announce("^2zm8 mod loaded - 8 player cap active");
+    zm8_announce("^2zm8 mod loaded - 8 player cap, mid-round auto-spawn on");
 
-    level.zm8_allperks = zm8_config_enabled("allperks");
-    level.zm8_autospawn = zm8_config_enabled("autospawn");
-
-    if (level.zm8_allperks)
-    {
-        zm8_announce("^3zm8: permanent all-perks is ON");
-    }
-
-    if (level.zm8_autospawn)
-    {
-        zm8_announce("^3zm8: mid-round auto-spawn is ON");
-    }
+    // per-game defaults: all-perks off, auto-spawn on (toggles last one game)
+    level.zm8_allperks = false;
+    level.zm8_autospawn = true;
 
     level thread zm8_character_index_fixer();
     level thread zm8_bgb_pack_fixer();
@@ -130,12 +121,10 @@ function zm8_cmd_allperks(args)
 
     if (enable)
     {
-        zm8_write_config("allperks", "1");
         zm8_announce("^3zm8: permanent all-perks ON");
     }
     else
     {
-        zm8_write_config("allperks", "0");
         zm8_announce("^3zm8: permanent all-perks OFF (perks already given stay until lost)");
     }
 }
@@ -163,12 +152,10 @@ function zm8_cmd_autospawn(args)
 
     if (enable)
     {
-        zm8_write_config("autospawn", "1");
         zm8_announce("^3zm8: mid-round auto-spawn ON");
     }
     else
     {
-        zm8_write_config("autospawn", "0");
         zm8_announce("^3zm8: mid-round auto-spawn OFF (joiners spawn next round, or via zm8_spawn)");
     }
 }
@@ -311,81 +298,6 @@ function zm8_perk_list()
     perks[perks.size] = "specialty_rof";
     perks[perks.size] = "specialty_longersprint";
     return perks;
-}
-
-function zm8_config_enabled(key)
-{
-    if (!fileexists("zm8/config.txt"))
-    {
-        return false;
-    }
-
-    content = readfile("zm8/config.txt");
-
-    if (!isdefined(content) || content == "")
-    {
-        return false;
-    }
-
-    lines = strtok(content, "\n\r");
-
-    for (i = 0; i < lines.size; i++)
-    {
-        parts = strtok(lines[i], "=");
-
-        if (parts.size >= 2 && tolower(parts[0]) == key)
-        {
-            return parts[1] == "1";
-        }
-    }
-
-    return false;
-}
-
-// update one key, keep the rest of the file
-function zm8_write_config(key, value)
-{
-    mkdir("zm8");
-
-    out = "";
-    written = false;
-
-    if (fileexists("zm8/config.txt"))
-    {
-        content = readfile("zm8/config.txt");
-
-        if (isdefined(content) && content != "")
-        {
-            lines = strtok(content, "\n\r");
-
-            for (i = 0; i < lines.size; i++)
-            {
-                if (lines[i].size == 0)
-                {
-                    continue;
-                }
-
-                parts = strtok(lines[i], "=");
-
-                if (parts.size >= 2 && tolower(parts[0]) == key)
-                {
-                    out += key + "=" + value + "\n";
-                    written = true;
-                }
-                else
-                {
-                    out += lines[i] + "\n";
-                }
-            }
-        }
-    }
-
-    if (!written)
-    {
-        out += key + "=" + value + "\n";
-    }
-
-    writefile("zm8/config.txt", out);
 }
 
 // GobbleGums for players 5-8: the gum scripts have no player cap, but the
