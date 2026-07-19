@@ -128,6 +128,17 @@ Shadows of Evil has no manual command classified as a strict 5–8-player compat
 | `zm8_soe_swords [1\|2]` | **Testing cheat:** give every living player their character's Apothicon sword (`1` = base, `2` = upgraded, default upgraded) |
 | `zm8_soe_servant` | **Testing cheat:** give every living player the upgraded Apothicon Servant (variant matches their character) |
 
+### Moon commands (`zm8_moon_*`)
+
+Best audit result of any map: **Moon has no 5–8-player compatibility gates at all.** The Area 51 teleporter counts only alive non-spectators on both legs, the Richtofen easter egg is proximity/interaction driven, and there are no per-player-count scaling tables. Nothing is fixed because nothing breaks — every Moon command is a testing cheat.
+
+Cosmetic quirks with 5–8 (documented, not fixed): the Pack-a-Punch zombie-distraction POI activates only when every **connected** player stands in the enclosure, so a spectator disables the distraction (PaP itself keeps working); helmet visuals are keyed to character index 0–3, so index twins share them. The hacker is wired through the map's equipment system and has no give command — grab it in the labs normally.
+
+| Command | Effect |
+|---|---|
+| `zm8_moon_wavegun` | **Testing cheat:** give every living player the upgraded Zap Guns / Wave Gun with full ammo |
+| `zm8_moon_qed` | **Testing cheat:** give every living player QEDs (quantum entanglement devices) |
+
 ## Known limitations
 
 - Scoreboard/HUD is built for 4 players; extras may not show on some screens (gameplay unaffected)

@@ -249,6 +249,25 @@ automatic and require no manual compatibility command.
                     give every living player the upgraded
                     Apothicon Servant (variant matches character).
 
+MOON COMMANDS (zm8_moon_*)
+--------------------------
+Best audit result of any map: Moon has NO 5-8 player compatibility
+gates. The Area 51 teleporter counts only alive non-spectators, the
+easter egg is proximity/interaction driven, and there are no
+per-player-count scaling tables. Nothing is fixed because nothing
+breaks - every Moon command is a testing cheat.
+Cosmetic with 5-8: the PaP zombie-distraction POI needs every
+CONNECTED player inside the enclosure (a spectator disables the
+distraction; PaP itself works), and helmet visuals are shared by
+character-index twins. The hacker has no give command (equipment
+system is map-wired) - grab it in the labs normally.
+
+[TESTING CHEAT] zm8_moon_wavegun
+                    give every living player the upgraded Zap Guns /
+                    Wave Gun with full ammo.
+[TESTING CHEAT] zm8_moon_qed
+                    give every living player QEDs.
+
 
 KNOWN LIMITATIONS
 -----------------

@@ -174,7 +174,18 @@ function zm8_powerup_pool_fixer()
 // character, and ee_begin needs EVERY active player to hold one).
 //
 // Map-specific commands use a zm8_<map>_ prefix and live in their own
-// section further down; add future maps (moon, ...) the same way.
+// section further down; add future maps the same way.
+//
+// Moon (zm_moon) - guarded by mapname, no-ops elsewhere:
+//   zm8_moon_wavegun      - TESTING CHEAT: give everyone the upgraded Wave
+//                           Gun / Zap Guns
+//   zm8_moon_qed          - TESTING CHEAT: give everyone QEDs
+// Audit result: Moon has NO 5-8 player compatibility gates - the Area 51
+// teleporter counts only alive non-spectators, the easter egg is proximity/
+// interaction based, and there are no per-player-count scaling tables.
+// Cosmetic only: the PaP zombie-distraction POI needs every CONNECTED
+// player inside the enclosure (a spectator disables the distraction, PaP
+// still works), and character-index twins share helmet visuals.
 function zm8_register_commands()
 {
     sys::addcommand(0, "zm8_allperks");
@@ -208,6 +219,10 @@ function zm8_register_commands()
     sys::addcommand(0, "zm8_soe_eecomplete");
     sys::addcommand(0, "zm8_soe_swords");
     sys::addcommand(0, "zm8_soe_servant");
+
+    // Moon
+    sys::addcommand(0, "zm8_moon_wavegun");
+    sys::addcommand(0, "zm8_moon_qed");
 
     level thread zm8_command_dispatch_loop();
 }
@@ -342,6 +357,14 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_soe_servant")
         {
             zm8_soe_cmd_servant(args);
+        }
+        else if (command_name == "zm8_moon_wavegun")
+        {
+            zm8_moon_cmd_wavegun(args);
+        }
+        else if (command_name == "zm8_moon_qed")
+        {
+            zm8_moon_cmd_qed(args);
         }
     }
 }
@@ -3609,4 +3632,134 @@ function zm8_soe_eecomplete_run()
 
     zm8_soe_cmd_swords(undefined);
     zm8_announce("^3zm8: ee_begin fires once everyone holds a sword - keeper phase next");
+}
+
+// ========================== Moon (zm_moon) ==========================
+// Audit result (decompile audit of ate47/bo3-source zm_moon scripts): Moon
+// has NO 5-8 player compatibility gates. The Area 51 teleporter counts only
+// alive non-spectators on both legs, the Richtofen easter egg is proximity
+// and interaction driven (no all-player or per-player-count checks), the
+// character assignment falls back to index 0 like the other maps, and there
+// are no scaling tables sized to 4. Everything below is therefore a TESTING
+// CHEAT, not a compatibility fix.
+//
+// Known cosmetic quirks with 5-8 (documented, not fixed):
+//  - the PaP zombie-distraction POI activates only when every CONNECTED
+//    player stands in the enclosure, so a spectator disables the
+//    distraction. Pack-a-Punch itself keeps working.
+//  - helmet/wearable visuals are world clientfields keyed to character
+//    index 0-3, so index twins share them.
+// The hacker is granted through the equipment system, which is map-wired -
+// no give command for it (grab it in the labs normally).
+
+// TESTING CHEAT: give every living player the upgraded Zap Guns / Wave Gun.
+function zm8_moon_cmd_wavegun(args)
+{
+    if (getdvarstring("mapname") != "zm_moon")
+    {
+        zm8_announce("^1zm8: zm8_moon_wavegun only works on Moon");
+        return;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        player zm8_moon_give_wavegun();
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave the upgraded Wave Gun to " + count + " player(s)");
+}
+
+// The box weapon is the dual-wield Zap Guns (microwavegundw); the combined
+// Wave Gun mode is handled by the weapon's own watchers on the map.
+function zm8_moon_give_wavegun()
+{
+    w_new = getweapon("microwavegundw_upgraded");
+
+    if (self hasweapon(w_new))
+    {
+        self setweaponammostock(w_new, w_new.maxammo);
+        self setweaponammoclip(w_new, w_new.clipsize);
+        return;
+    }
+
+    // take any base/mode variant first so the give is a clean upgrade
+    variants = [];
+    variants[0] = "microwavegundw";
+    variants[1] = "microwavegun";
+    variants[2] = "microwavegun_upgraded";
+
+    took_variant = false;
+
+    for (v = 0; v < variants.size; v++)
+    {
+        w_old = getweapon(variants[v]);
+
+        if (self hasweapon(w_old))
+        {
+            self scripts\zm\_zm_weapons::weapon_take(w_old);
+            took_variant = true;
+        }
+    }
+
+    if (!took_variant)
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self zm8_take_primary_for_slot();
+        }
+    }
+
+    self scripts\zm\_zm_weapons::weapon_give(w_new, 0, 0, 1);
+    self setweaponammostock(w_new, w_new.maxammo);
+    self setweaponammoclip(w_new, w_new.clipsize);
+    self switchtoweapon(w_new);
+}
+
+// TESTING CHEAT: give every living player QEDs (quantum entanglement
+// devices, the tactical-slot wonder grenade).
+function zm8_moon_cmd_qed(args)
+{
+    if (getdvarstring("mapname") != "zm_moon")
+    {
+        zm8_announce("^1zm8: zm8_moon_qed only works on Moon");
+        return;
+    }
+
+    wpn = getweapon("quantum_bomb");
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        if (!(player hasweapon(wpn)))
+        {
+            player scripts\zm\_zm_weapons::weapon_give(wpn);
+        }
+
+        player setweaponammoclip(wpn, wpn.clipsize);
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave QEDs to " + count + " player(s)");
 }
