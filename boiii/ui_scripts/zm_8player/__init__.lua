@@ -407,46 +407,112 @@ pcall(function()
 	end
 
 	-- 8-row TAB scoreboard: the zombies match scoreboard is
-	-- ScoreboardWidgetCP whose player list is hard-set to 4 visible slots
-	-- (Team1:setVerticalCount(4)); rows are 25px so 8 slots fit the same
-	-- area without any scaling. Patch the live instance.
-	local function patchTabScoreboard()
-		if not (LUI and LUI.roots) then
-			return false
+	-- ScoreboardWidgetCP whose player list (a UIList with id "Team1",
+	-- default vertical count 9) gets clamped to 4 visible slots by its
+	-- parent. Rows are 25px so 8 slots fit the same area without scaling.
+	-- Three angles, because the previous id-walk alone did not land:
+	-- wrap the class constructor, walk for the widget id, and walk for the
+	-- row list's own "Team1" id directly (zombies sessions only).
+	local tabPatched = false
+
+	local function raiseListCount(lst, where)
+		local ok = pcall(function() lst:setVerticalCount(8) end)
+
+		if ok then
+			tabPatched = true
+			dbg("TAB scoreboard list raised to 8 slots (" .. where .. ")")
+		else
+			dbg("TAB scoreboard setVerticalCount failed (" .. where .. ")")
 		end
 
-		local patched = false
+		return ok
+	end
+
+	pcall(function()
+		local sbClass = CoD.ScoreboardWidgetCP
+
+		if sbClass and type(sbClass.new) == "function" and not sbClass.zm8_wrapped then
+			local origSbNew = sbClass.new
+
+			local wrapped = function(...)
+				local inst = origSbNew(...)
+				pcall(function()
+					if inst and inst.ScoreboardFactionScoresListCP0 and inst.ScoreboardFactionScoresListCP0.Team1 then
+						raiseListCount(inst.ScoreboardFactionScoresListCP0.Team1, "constructor")
+					end
+				end)
+				return inst
+			end
+
+			if not pcall(function() sbClass.new = wrapped end) then
+				pcall(function() rawset(sbClass, "new", wrapped) end)
+			end
+
+			pcall(function() sbClass.zm8_wrapped = true end)
+			dbg("ScoreboardWidgetCP constructor wrapped")
+		end
+	end)
+
+	local dumpedTree = false
+
+	local function dumpIdTree(node, depth)
+		if not node or depth > 3 then
+			return
+		end
+
+		if node.id then
+			dbg(string.rep("  ", depth) .. "id=" .. tostring(node.id))
+		end
+
+		local child = nil
+		pcall(function() child = node:getFirstChild() end)
+
+		while child do
+			dumpIdTree(child, depth + 1)
+			local nxt = nil
+			pcall(function() nxt = child:getNextSibling() end)
+			child = nxt
+		end
+	end
+
+	local function patchTabScoreboard()
+		if tabPatched or not (LUI and LUI.roots) then
+			return tabPatched
+		end
 
 		for _, rootName in ipairs({ "UIRoot0", "UIRootFull", "UIRoot1" }) do
 			local root = LUI.roots[rootName]
 
 			if root then
+				-- primary: the widget by its id, then its known child path
 				local found = {}
 				pcall(function() findInstances(root, "ScoreboardWidgetCP", 0, found) end)
 
 				for i = 1, #found do
 					local sb = found[i]
 
-					if not sb.zm8_tab_patched then
-						local ok = pcall(function()
-							sb.ScoreboardFactionScoresListCP0.Team1:setVerticalCount(8)
-						end)
-
-						if ok then
-							sb.zm8_tab_patched = true
-							patched = true
-							dbg("TAB scoreboard extended to 8 slots under " .. rootName)
-						else
-							dbg("TAB scoreboard patch failed (structure mismatch)")
+					pcall(function()
+						if sb.ScoreboardFactionScoresListCP0 and sb.ScoreboardFactionScoresListCP0.Team1 then
+							raiseListCount(sb.ScoreboardFactionScoresListCP0.Team1, "widget walk/" .. rootName)
 						end
-					else
-						patched = true
+					end)
+				end
+
+				-- fallback: the row list registers its own id ("Team1")
+				if not tabPatched then
+					local lists = {}
+					pcall(function() findInstances(root, "Team1", 0, lists) end)
+
+					for i = 1, #lists do
+						if type(lists[i].setVerticalCount) == "function" then
+							raiseListCount(lists[i], "Team1 walk/" .. rootName)
+						end
 					end
 				end
 			end
 		end
 
-		return patched
+		return tabPatched
 	end
 
 	local function tryInjectLive()
@@ -512,9 +578,21 @@ pcall(function()
 				local done = false
 				pcall(function() done = tryInjectLive() end)
 
-				if (done and colorWrapsInstalled) or attempts > 300 then
+				-- if the HUD rows landed but the TAB board still is not
+				-- found after a while, dump the UI id tree once so the
+				-- console shows what the scoreboard is actually called
+				if done and not tabPatched and attempts == 30 and not dumpedTree then
+					dumpedTree = true
+					pcall(function()
+						dbg("TAB board not found yet - id tree of UIRoot0:")
+						dumpIdTree(LUI.roots.UIRoot0, 0)
+					end)
+				end
+
+				if (done and colorWrapsInstalled and tabPatched) or attempts > 300 then
 					dbg("poller finished, attempts=" .. attempts .. " injected=" .. tostring(done)
-						.. " colors=" .. tostring(colorWrapsInstalled))
+						.. " colors=" .. tostring(colorWrapsInstalled)
+						.. " tab=" .. tostring(tabPatched))
 					poller:close()
 				end
 			end)
