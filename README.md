@@ -92,6 +92,21 @@ Two easter-egg gates count **every connected player** (spectators included) and 
 | `zm8_gk_weapons [kind]` | cheat: give every living player a wonder weapon — `fire` (GKZ-45 Mk3, default), `strike` (Dragon Strike), `gauntlet` (Gauntlet of Siegfried), `shield` (dragon shield; experimental) |
 | `zm8_gk_gauntlet` | skip the Gauntlet of Siegfried incubation quest and hand the gauntlet out |
 
+### Shadows of Evil commands (`zm8_soe_*`) and automatic fixes
+
+Two things are fixed **automatically** — no command needed:
+
+- **Round spawner crash**: the map's zombie spawn-delay formula only covers 1–4 players and script-errors with a 5th player in the game. zm8 swaps in a clamped copy (5–8 get 4-player pacing).
+- **Sword gate**: the main quest's keeper phase (`ee_begin`) waits until **every active player** holds their character's upgraded Apothicon sword, but sword progress is tracked per character — players 5–8 share a character with someone else and can never earn their own. zm8 auto-hands a duplicate the sword once their "character twin" has earned it.
+
+Rituals, relics and pod teleporters are per-character and tolerate duplicates sharing progress (both index-twins can interact with the same stations).
+
+| Command | Effect |
+|---|---|
+| `zm8_soe_eecomplete` | testing cheat: force the ritual flags (`ritual_all_characters_complete`, `ritual_pap_complete`) and hand out upgraded swords — the keeper/boss phase then starts on its own |
+| `zm8_soe_swords [1\|2]` | cheat: give every living player their character's Apothicon sword (`1` = base, `2` = upgraded, default upgraded) |
+| `zm8_soe_servant` | cheat: give every living player the upgraded Apothicon Servant (variant matches their character) |
+
 ## Known limitations
 
 - Scoreboard/HUD is built for 4 players; extras may not show on some screens (gameplay unaffected)

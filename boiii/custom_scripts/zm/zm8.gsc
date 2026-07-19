@@ -63,6 +63,7 @@ autoexec function zm8_init()
     level thread zm8_de_bow_sharing_init();
     level thread zm8_origins_staff_sharing_init();
     level thread zm8_gk_init();
+    level thread zm8_soe_init();
 }
 
 // carpenter powerups reportedly crash modded 8-player games - keep them out
@@ -116,11 +117,15 @@ function zm8_powerup_pool_fixer()
 //                          (e.g. zm8_gum shopping free)
 //
 // Der Eisendrache (zm_castle) - guarded by mapname, no-ops elsewhere:
+//   zm8_de_test [0]       - purchase every door/debris blocker, turn on power and
+//                           make all current players invulnerable (0 = off)
 //   zm8_de_eecomplete     - TEST cheat: skip the whole main quest to
 //                           boss-ready (then use zm8_de_bossfight)
 //   zm8_de_bossfight      - force-start the final boss fight
 //   zm8_de_bows [element] - cheat: give everyone an upgraded bow
 //                           (fire/void/storm/wolf; no arg = mix of all four)
+//   zm8_de_lightningready - fill the dragons and drive the stock lightning-
+//                           bow quest until its upgraded bow is on the altar
 //   zm8_de_ragnarok       - cheat: give everyone the Ragnarok DG-4
 //
 // Origins (zm_tomb) - guarded by mapname, no-ops elsewhere:
@@ -154,8 +159,22 @@ function zm8_powerup_pool_fixer()
 // arrays and the arena teleport spots are padded to 8 players, and
 // spectators are auto-credited on the all-players EE gates.
 //
+// Shadows of Evil (zm_zod) - guarded by mapname, no-ops elsewhere:
+//   zm8_soe_eecomplete    - TEST cheat: force the ritual flags and hand out
+//                           upgraded swords so the main quest jumps to the
+//                           keeper/boss phase (ee_begin fires on its own)
+//   zm8_soe_swords [1|2]  - cheat: give everyone their character's Apothicon
+//                           sword (1 = base, 2 = upgraded, default 2)
+//   zm8_soe_servant       - cheat: give everyone the upgraded Apothicon
+//                           Servant (idgun)
+// Passive 5-8 fixers on this map (no command): the zombie spawn-delay
+// formula only covers 1-4 players (script error at 5+) and is replaced with
+// a clamped copy; duplicate-character players are auto-given the upgraded
+// sword once their "index twin" earned it (the quest tracks progress per
+// character, and ee_begin needs EVERY active player to hold one).
+//
 // Map-specific commands use a zm8_<map>_ prefix and live in their own
-// section further down; add future maps (soe, moon, ...) the same way.
+// section further down; add future maps (moon, ...) the same way.
 function zm8_register_commands()
 {
     sys::addcommand(0, "zm8_allperks");
@@ -164,9 +183,11 @@ function zm8_register_commands()
     sys::addcommand(0, "zm8_gum");
 
     // Der Eisendrache
+    sys::addcommand(0, "zm8_de_test");
     sys::addcommand(0, "zm8_de_eecomplete");
     sys::addcommand(0, "zm8_de_bossfight");
     sys::addcommand(0, "zm8_de_bows");
+    sys::addcommand(0, "zm8_de_lightningready");
     sys::addcommand(0, "zm8_de_ragnarok");
 
     // Origins
@@ -182,6 +203,11 @@ function zm8_register_commands()
     sys::addcommand(0, "zm8_gk_koth");
     sys::addcommand(0, "zm8_gk_weapons");
     sys::addcommand(0, "zm8_gk_gauntlet");
+
+    // Shadows of Evil
+    sys::addcommand(0, "zm8_soe_eecomplete");
+    sys::addcommand(0, "zm8_soe_swords");
+    sys::addcommand(0, "zm8_soe_servant");
 
     level thread zm8_command_dispatch_loop();
 }
@@ -241,6 +267,10 @@ function zm8_command_dispatch_loop()
         {
             zm8_cmd_gum(args);
         }
+        else if (command_name == "zm8_de_test")
+        {
+            zm8_de_cmd_test(args);
+        }
         else if (command_name == "zm8_de_eecomplete")
         {
             zm8_de_cmd_eecomplete(args);
@@ -252,6 +282,10 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_de_bows")
         {
             zm8_de_cmd_bows(args);
+        }
+        else if (command_name == "zm8_de_lightningready")
+        {
+            zm8_de_cmd_lightningready(args);
         }
         else if (command_name == "zm8_de_ragnarok")
         {
@@ -296,6 +330,18 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_gk_gauntlet")
         {
             zm8_gk_cmd_gauntlet(args);
+        }
+        else if (command_name == "zm8_soe_eecomplete")
+        {
+            zm8_soe_cmd_eecomplete(args);
+        }
+        else if (command_name == "zm8_soe_swords")
+        {
+            zm8_soe_cmd_swords(args);
+        }
+        else if (command_name == "zm8_soe_servant")
+        {
+            zm8_soe_cmd_servant(args);
         }
     }
 }
@@ -346,6 +392,211 @@ function zm8_cmd_gum(args)
 // ceremony normally lowers, so lower them here the same way. Skipped-over
 // quest flags stay unset, so the ending cinematic after the boss may not
 // play in a skipped run.
+function zm8_de_cmd_test(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_de_test only works on Der Eisendrache");
+        return;
+    }
+
+    players = getplayers();
+
+    // The setup itself is intentionally one-way, but allow test immunity to
+    // be removed without restarting the match.
+    if (args.size > 0 && args[0] == "0")
+    {
+        for (i = 0; i < players.size; i++)
+        {
+            players[i] disableinvulnerability();
+        }
+
+        level.zm8_de_test_invulnerable = false;
+        zm8_announce("^3zm8: DE test immunity disabled");
+        return;
+    }
+
+    if (!isdefined(level.flag) || !isdefined(level.zones))
+    {
+        zm8_announce("^1zm8: DE zones are not initialized yet");
+        return;
+    }
+
+    // Wait briefly for the stock zone manager to finish registering every
+    // adjacency. Setting those registered flags makes the stock watchers open
+    // doors and enable zones exactly as if their buys/triggers had fired.
+    for (t = 0; t < 40 && (!isdefined(level.flag["zones_initialized"]) || !level.flag["zones_initialized"]); t++)
+    {
+        wait 0.25;
+    }
+
+    // Prefer the real DE power-switch listener so its scene, FX and client
+    // notify run. Fall back to the shared power flag if the switch is gone or
+    // no player entity is available.
+    if (isdefined(level.flag["power_on"]) && !level.flag["power_on"])
+    {
+        power_switch = getent("use_power_switch", "targetname");
+
+        if (isdefined(power_switch) && players.size > 0)
+        {
+            power_switch notify("trigger", players[0]);
+
+            for (t = 0; t < 20 && !level.flag["power_on"]; t++)
+            {
+                wait 0.1;
+            }
+        }
+
+        if (!level.flag["power_on"])
+        {
+            level scripts\shared\flag_shared::set("power_on");
+        }
+    }
+
+    // Mirror _zm_power::turn_power_on_and_open_doors without statically
+    // importing that script: this all-map custom GSC may only link scripts
+    // loaded universally.
+    level.local_doors_stay_open = 1;
+    level.power_local_doors_globally = 1;
+    level scripts\shared\clientfield_shared::set("zombie_power_on", 0);
+
+    zombie_doors = getentarray("zombie_door", "targetname");
+
+    for (i = 0; i < zombie_doors.size; i++)
+    {
+        door = zombie_doors[i];
+
+        if (!isdefined(door.script_noteworthy))
+        {
+            continue;
+        }
+
+        if (door.script_noteworthy == "electric_door" || door.script_noteworthy == "electric_buyable_door")
+        {
+            door notify("power_on");
+        }
+        else if (door.script_noteworthy == "local_electric_door")
+        {
+            door notify("local_power_on");
+        }
+    }
+
+    // Power/zone flags alone do not move DE's physical buyable door models.
+    // Feed the same forced purchase event used by the stock open-sesame dev
+    // command into every door and debris blocker.
+    if (players.size > 0)
+    {
+        wait 0.25;
+        level.zm8_de_test_buyables = zm8_de_force_open_buyables(players[0]);
+    }
+
+    zone_names = getarraykeys(level.zones);
+
+    for (z = 0; z < zone_names.size; z++)
+    {
+        zone = level.zones[zone_names[z]];
+
+        if (!isdefined(zone.adjacent_zones))
+        {
+            continue;
+        }
+
+        adjacent_names = getarraykeys(zone.adjacent_zones);
+
+        for (a = 0; a < adjacent_names.size; a++)
+        {
+            adjacent = zone.adjacent_zones[adjacent_names[a]];
+
+            if (!isdefined(adjacent.flags))
+            {
+                continue;
+            }
+
+            for (f = 0; f < adjacent.flags.size; f++)
+            {
+                flag_name = adjacent.flags[f];
+
+                if (isdefined(level.flag[flag_name]) && !level.flag[flag_name])
+                {
+                    level scripts\shared\flag_shared::set(flag_name);
+                }
+            }
+        }
+    }
+
+    for (i = 0; i < players.size; i++)
+    {
+        players[i] enableinvulnerability();
+    }
+
+    level.zm8_de_test_invulnerable = true;
+    zm8_announce("^2zm8: DE test setup - buyable doors open, power and immunity on");
+}
+
+function zm8_de_force_open_buyables(host)
+{
+    if (!isdefined(host))
+    {
+        return 0;
+    }
+
+    // Debris uses zombie_unlock_all to skip its score check even when the
+    // forced trigger argument is present. Preserve the user's original dvar.
+    old_unlock_all = getdvarint("zombie_unlock_all");
+    setdvar("zombie_unlock_all", 1);
+    wait 0.05;
+
+    opened = 0;
+    doors = getentarray("zombie_door", "targetname");
+
+    for (i = 0; i < doors.size; i++)
+    {
+        if (!isdefined(doors[i]))
+        {
+            continue;
+        }
+
+        // Do not toggle a door that an earlier paired trigger already opened.
+        if ((isdefined(doors[i]._door_open) && doors[i]._door_open) || (isdefined(doors[i].has_been_opened) && doors[i].has_been_opened))
+        {
+            continue;
+        }
+
+        doors[i] notify("trigger", host, 1);
+        opened++;
+        wait 0.05;
+    }
+
+    airlock_doors = getentarray("zombie_airlock_buy", "targetname");
+
+    for (i = 0; i < airlock_doors.size; i++)
+    {
+        if (isdefined(airlock_doors[i]))
+        {
+            airlock_doors[i] notify("trigger", host, 1);
+            opened++;
+            wait 0.05;
+        }
+    }
+
+    debris = getentarray("zombie_debris", "targetname");
+
+    for (i = 0; i < debris.size; i++)
+    {
+        if (isdefined(debris[i]))
+        {
+            debris[i] notify("trigger", host, 1);
+            opened++;
+            wait 0.05;
+        }
+    }
+
+    level notify("open_sesame");
+    wait 1;
+    setdvar("zombie_unlock_all", old_unlock_all);
+    return opened;
+}
+
 function zm8_de_cmd_eecomplete(args)
 {
     if (getdvarstring("mapname") != "zm_castle")
@@ -571,6 +822,378 @@ function zm8_de_give_bow(element)
     self setweaponammostock(w_bow, w_bow.maxammo);
     self setweaponammoclip(w_bow, w_bow.clipsize);
     self switchtoweapon(w_bow);
+}
+
+function zm8_de_give_base_bow()
+{
+    variants = [];
+    variants[0] = "elemental_bow_storm";
+    variants[1] = "elemental_bow_demongate";
+    variants[2] = "elemental_bow_wolf_howl";
+    variants[3] = "elemental_bow_rune_prison";
+
+    for (i = 0; i < variants.size; i++)
+    {
+        w_old = getweapon(variants[i]);
+
+        if (self hasweapon(w_old))
+        {
+            self scripts\zm\_zm_weapons::weapon_take(w_old);
+        }
+    }
+
+    w_bow = getweapon("elemental_bow");
+
+    if (!self hasweapon(w_bow))
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+        }
+
+        self scripts\zm\_zm_weapons::weapon_give(w_bow, 0, 0, 1);
+    }
+
+    self setweaponammostock(w_bow, w_bow.maxammo);
+    self setweaponammoclip(w_bow, w_bow.clipsize);
+    self switchtoweapon(w_bow);
+}
+
+function zm8_de_wait_for_flag(flag_name, seconds)
+{
+    ticks = seconds * 4;
+
+    for (i = 0; i < ticks; i++)
+    {
+        if (isdefined(level.flag) && isdefined(level.flag[flag_name]) && level.flag[flag_name])
+        {
+            return true;
+        }
+
+        wait 0.25;
+    }
+
+    return false;
+}
+
+function zm8_de_lightning_fail(stage_name)
+{
+    level.zm8_de_lightningready_running = false;
+    zm8_announce("^1zm8: lightning setup stalled at " + stage_name);
+}
+
+// Test driver for the stock DE weapon quest. It feeds the same counters,
+// entity notifies and unitrigger notifies that legitimate kills/shots/use
+// presses feed, allowing the map's own coroutine to play its animations and
+// perform its cleanup. Only repetitive soul counts are filled directly.
+function zm8_de_cmd_lightningready(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_de_lightningready only works on Der Eisendrache");
+        return;
+    }
+
+    if (isdefined(level.zm8_de_lightningready_running) && level.zm8_de_lightningready_running)
+    {
+        zm8_announce("^3zm8: lightning setup is already running");
+        return;
+    }
+
+    if (isdefined(level.flag) && isdefined(level.flag["elemental_storm_spawned"]) && level.flag["elemental_storm_spawned"])
+    {
+        zm8_announce("^3zm8: upgraded lightning bow is already on its altar");
+        return;
+    }
+
+    players = getplayers();
+
+    if (players.size == 0 || !isdefined(players[0]) || !isalive(players[0]))
+    {
+        zm8_announce("^1zm8: host player is not alive");
+        return;
+    }
+
+    level.zm8_de_lightningready_running = true;
+    level thread zm8_de_lightningready_thread(players[0]);
+}
+
+function zm8_de_lightningready_thread(host)
+{
+    level endon("end_game");
+    zm8_announce("^2zm8: filling all three dragons through the stock quest");
+
+    for (t = 0; t < 80 && (!isdefined(level.soul_catchers) || level.soul_catchers.size < 3); t++)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(level.soul_catchers) || level.soul_catchers.size < 3)
+    {
+        zm8_de_lightning_fail("dragon initialization");
+        return;
+    }
+
+    level.var_63e17dd5 = host;
+
+    for (i = 0; i < level.soul_catchers.size; i++)
+    {
+        dragon = level.soul_catchers[i];
+
+        if (!isdefined(dragon.is_charged) || !dragon.is_charged)
+        {
+            if (!isdefined(dragon.var_98730ffa) || dragon.var_98730ffa == 0)
+            {
+                dragon notify("first_zombie_killed_in_zone", host);
+            }
+
+            dragon.is_eating = 0;
+            dragon.var_98730ffa = 8;
+        }
+    }
+
+    if (!zm8_de_wait_for_flag("soul_catchers_charged", 20))
+    {
+        zm8_de_lightning_fail("dragon completion");
+        return;
+    }
+
+    // The stock completion thread creates the real altar, model, FX and
+    // per-player trigger. Give its spawned base bow to the host so the rest
+    // of this single command can continue without a manual pickup pause.
+    for (t = 0; t < 80 && !isdefined(level.var_15acc392); t++)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(level.var_15acc392))
+    {
+        zm8_de_lightning_fail("Wrath of the Ancients spawn");
+        return;
+    }
+
+    host zm8_de_give_base_bow();
+    wait 0.5;
+    zm8_announce("^2zm8: Wrath spawned - starting the stock lightning quest");
+
+    weather_trigger = getent("aq_es_weather_vane_trig", "targetname");
+
+    if (!isdefined(weather_trigger))
+    {
+        zm8_de_lightning_fail("weather vane");
+        return;
+    }
+
+    w_base = getweapon("elemental_bow");
+    weather_trigger notify("damage", 1, host, (0, 0, 1), weather_trigger.origin, "MOD_PROJECTILE", "tag_origin", "", "", w_base);
+
+    start_struct = scripts\codescripts\struct::get("quest_start_elemental_storm");
+
+    for (t = 0; t < 120 && (!isdefined(level.var_18c771ad) || !isdefined(start_struct) || !isdefined(start_struct.var_67b5dd94)); t++)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(level.var_18c771ad) || !isdefined(start_struct) || !isdefined(start_struct.var_67b5dd94))
+    {
+        zm8_de_lightning_fail("broken arrow spawn");
+        return;
+    }
+
+    for (t = 0; t < 40 && (!isdefined(level.var_f8d1dc16) || level.var_f8d1dc16 != host); t++)
+    {
+        start_struct.var_67b5dd94 notify("trigger", host);
+        wait 0.5;
+    }
+
+    if (!isdefined(level.var_f8d1dc16) || level.var_f8d1dc16 != host)
+    {
+        zm8_de_lightning_fail("broken arrow pickup");
+        return;
+    }
+
+    // First three outdoor bonfires: their stock threads listen for projectile
+    // impacts on the quest owner and validate each impact position.
+    for (t = 0; t < 80 && !isdefined(level.var_c5c6a918); t++)
+    {
+        wait 0.25;
+    }
+
+    beacons = getentarray("aq_es_beacon_trig", "script_noteworthy");
+
+    if (beacons.size < 3)
+    {
+        zm8_de_lightning_fail("bonfire initialization");
+        return;
+    }
+
+    for (i = 0; i < beacons.size; i++)
+    {
+        host notify("projectile_impact", w_base, beacons[i].origin, 0, host, (0, 0, 1));
+        wait 0.25;
+    }
+
+    wait 1;
+
+    // The five wall-rune handlers additionally require engine-generated
+    // wall-run/touch state; synthetic trigger notifies alone are ignored.
+    // Mark their visible rune movers complete and release the same flag the
+    // fifth legitimate plate sets. The stock coroutine then performs its
+    // normal rune cleanup and proceeds to the urn stage.
+    wall_triggers = getentarray("aq_es_wallrun_trigger", "targetname");
+
+    for (i = 0; i < wall_triggers.size; i++)
+    {
+        if (isdefined(wall_triggers[i].target))
+        {
+            rune_mover = getent(wall_triggers[i].target, "targetname");
+
+            if (isdefined(rune_mover))
+            {
+                rune_mover scripts\shared\clientfield_shared::set("wallrun_fx", 2);
+            }
+        }
+    }
+
+    host.var_a4f04654 = wall_triggers.size;
+    level.var_49593fd9 = wall_triggers;
+    level scripts\shared\flag_shared::set("elemental_storm_wallrun");
+    wait 1;
+
+    battery_volumes = getentarray("aq_es_battery_volume", "script_noteworthy");
+
+    for (t = 0; t < 80 && (battery_volumes.size == 0 || !isdefined(battery_volumes[0].var_bb486f65)); t++)
+    {
+        wait 0.25;
+        battery_volumes = getentarray("aq_es_battery_volume", "script_noteworthy");
+    }
+
+    if (battery_volumes.size == 0)
+    {
+        zm8_de_lightning_fail("lightning urn initialization");
+        return;
+    }
+
+    wait 0.5;
+
+    for (i = 0; i < battery_volumes.size; i++)
+    {
+        for (n = 0; n < 5; n++)
+        {
+            battery_volumes[i] notify("killed");
+            wait 0.05;
+        }
+    }
+
+    if (!zm8_de_wait_for_flag("elemental_storm_batteries", 15))
+    {
+        zm8_de_lightning_fail("lightning urn souls");
+        return;
+    }
+
+    // Charged shots from the three filled urns into the three bonfires.
+    charged_batteries = getentarray("aq_es_battery_volume_charged", "script_noteworthy");
+    wait 0.5;
+
+    for (i = 0; i < beacons.size; i++)
+    {
+        projectile = spawnstruct();
+        projectile.var_e4594d27 = 1;
+
+        if (charged_batteries.size > 0)
+        {
+            projectile.var_8f88d1fd = charged_batteries[i % charged_batteries.size];
+        }
+
+        host notify("projectile_impact", w_base, beacons[i].origin, 0, projectile, (0, 0, 1));
+        wait 0.25;
+    }
+
+    if (!zm8_de_wait_for_flag("elemental_storm_beacons_charged", 15))
+    {
+        zm8_de_lightning_fail("charged bonfires");
+        return;
+    }
+
+    // The reforge altar has two sequential use waits. Repeating the stock
+    // unitrigger notify survives the intervening animation without racing it.
+    reforge = scripts\codescripts\struct::get("quest_reforge_elemental_storm");
+
+    for (t = 0; t < 120 && (!isdefined(reforge) || !isdefined(reforge.var_67b5dd94)); t++)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(reforge) || !isdefined(reforge.var_67b5dd94))
+    {
+        zm8_de_lightning_fail("arrow reforge altar");
+        return;
+    }
+
+    for (t = 0; t < 120 && (!isdefined(level.flag["elemental_storm_repaired"]) || !level.flag["elemental_storm_repaired"]); t++)
+    {
+        reforge.var_67b5dd94 notify("trigger", host);
+        wait 0.5;
+    }
+
+    if (!zm8_de_wait_for_flag("elemental_storm_repaired", 2))
+    {
+        zm8_de_lightning_fail("arrow reforge");
+        return;
+    }
+
+    pedestal = scripts\codescripts\struct::get("upgraded_bow_struct_elemental_storm", "targetname");
+
+    for (t = 0; t < 80 && (!isdefined(pedestal) || !isdefined(pedestal.var_67b5dd94)); t++)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(pedestal) || !isdefined(pedestal.var_67b5dd94))
+    {
+        zm8_de_lightning_fail("lightning arrow pedestal");
+        return;
+    }
+
+    for (t = 0; t < 80 && (!isdefined(level.flag["elemental_storm_placed"]) || !level.flag["elemental_storm_placed"]); t++)
+    {
+        pedestal.var_67b5dd94 notify("trigger", host);
+        wait 0.5;
+    }
+
+    if (!zm8_de_wait_for_flag("elemental_storm_placed", 2))
+    {
+        zm8_de_lightning_fail("placing arrow in the soul box");
+        return;
+    }
+
+    // Stock normally reaches 20 through its zombie-death callback. Fill the
+    // same counter and release its wait, then use the altar once more so the
+    // stock upgrade animation creates the actual pickup model.
+    pedestal.var_ce58f456 = 20;
+    level scripts\shared\flag_shared::set("elemental_storm_upgraded");
+
+    for (t = 0; t < 160 && (!isdefined(level.flag["elemental_storm_spawned"]) || !level.flag["elemental_storm_spawned"]); t++)
+    {
+        if (isdefined(pedestal.var_67b5dd94))
+        {
+            pedestal.var_67b5dd94 notify("trigger", host);
+        }
+
+        wait 0.5;
+    }
+
+    if (!zm8_de_wait_for_flag("elemental_storm_spawned", 2))
+    {
+        zm8_de_lightning_fail("upgraded bow spawn");
+        return;
+    }
+
+    level.zm8_de_lightningready_running = false;
+    zm8_announce("^2zm8: upgraded lightning bow is ready on the altar");
 }
 
 // The base Wrath of the Ancients altar is already per-player. Upgraded bow
@@ -2610,4 +3233,380 @@ function zm8_gk_cmd_gauntlet(args)
     }
 
     zm8_announce("^2zm8: gauntlet quest skipped - gave the gauntlet to " + count + " player(s)");
+}
+
+// ========================== Shadows of Evil (zm8_soe_*) ==========================
+// Everything below is zm_zod-only: the passive fixers bail out on other maps
+// and the commands are guarded by mapname. Hash names are the decompiler's.
+//
+// What breaks with 5-8 players on this map (decompile audit):
+//  - every round: zm_zod's zombie spawn-delay formula switches on
+//    players.size with cases 1-4 only, so 5+ leaves the delay undefined and
+//    the round spawner script-errors. The map exposes it as a level function
+//    pointer (level.func_get_zombie_spawn_delay), so replace it with a
+//    clamped copy.
+//  - easter egg: "ee_begin" waits until EVERY active player holds their
+//    character's upgraded Apothicon sword, but sword-quest progress is
+//    tracked per character index - the duplicate-index players 5-8 can
+//    never earn their own. Auto-give a duplicate the sword once another
+//    player with the same character index has it.
+//  - character indexes 0-3 repeat for players 5-8 (map falls back to 0
+//    itself); rituals/relics/teleporters are per-character and tolerate
+//    duplicates sharing progress.
+
+function zm8_soe_init()
+{
+    level endon("end_game");
+
+    if (getdvarstring("mapname") != "zm_zod")
+    {
+        return;
+    }
+
+    level thread zm8_soe_spawn_delay_fixer();
+    level thread zm8_soe_sword_dup_assist();
+}
+
+// Replace the map's per-player-count spawn-delay formula with a copy that
+// clamps to the 4-player values for 5-8 players. The stock function reads a
+// switch with no case above 4 and returns undefined - a script error in the
+// round spawner the moment a 5th player is in.
+function zm8_soe_spawn_delay_fixer()
+{
+    level endon("end_game");
+
+    while (!isdefined(level.func_get_zombie_spawn_delay))
+    {
+        wait 0.1;
+    }
+
+    level.func_get_zombie_spawn_delay = &zm8_soe_get_zombie_spawn_delay;
+    sys::println(0, "zm8: replaced the zod spawn-delay formula (5-8 players use 4-player pacing)");
+}
+
+// Faithful copy of zm_zod's function_59804866 with players.size clamped.
+function zm8_soe_get_zombie_spawn_delay(n_round)
+{
+    if (n_round > 60)
+    {
+        n_round = 60;
+    }
+
+    n_players = level.players.size;
+
+    if (n_players > 4)
+    {
+        n_players = 4;
+    }
+
+    n_delay = 2;
+
+    if (n_players == 2)
+    {
+        n_delay = 1.5;
+    }
+    else if (n_players == 3)
+    {
+        n_delay = 0.89;
+    }
+    else if (n_players == 4)
+    {
+        n_delay = 0.67;
+    }
+
+    for (i = 1; i < n_round; i++)
+    {
+        n_delay = n_delay * 0.95;
+
+        if (n_delay <= 0.1)
+        {
+            n_delay = 0.1;
+            break;
+        }
+    }
+
+    return n_delay;
+}
+
+// The sword quest tracks progress per character index (eggs, ovum rooms,
+// sword lockers are all keyed 0-3), so a 5th player who shares an index can
+// never earn their own sword - and the main quest's ee_begin gate needs
+// EVERY active player to hold an upgraded one. Once any player holds the
+// upgraded sword for an index, hand it to every other active player with
+// that index too.
+function zm8_soe_sword_dup_assist()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        wait 2;
+
+        if (!isdefined(level.sword_quest) || !isdefined(level.sword_quest.weapons))
+        {
+            continue;
+        }
+
+        players = getplayers();
+
+        if (players.size <= 4)
+        {
+            continue;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            player = players[i];
+
+            if (!zm8_gk_player_can_participate(player) || !isdefined(player.characterindex))
+            {
+                continue;
+            }
+
+            wpn_sword = level.sword_quest.weapons[player.characterindex][2];
+
+            if (!isdefined(wpn_sword))
+            {
+                continue;
+            }
+
+            w_hero = player scripts\zm\_zm_utility::get_player_hero_weapon();
+
+            if (isdefined(w_hero) && w_hero == wpn_sword)
+            {
+                continue;
+            }
+
+            // does an index twin already hold the upgraded sword?
+            for (j = 0; j < players.size; j++)
+            {
+                twin = players[j];
+
+                if (!isdefined(twin) || twin == player || !isdefined(twin.characterindex))
+                {
+                    continue;
+                }
+
+                w_twin_hero = twin scripts\zm\_zm_utility::get_player_hero_weapon();
+
+                if (twin.characterindex == player.characterindex
+                    && isdefined(w_twin_hero) && w_twin_hero == wpn_sword)
+                {
+                    player zm8_soe_give_sword(2);
+                    zm8_announce("^3zm8: " + player.name + " got the sword their character twin earned");
+                    break;
+                }
+            }
+        }
+    }
+}
+
+// Inline replica of zm_zod_sword::give_sword (the sword scripts are map-only
+// and cannot be called statically): stage bump, weapon_give of the
+// character's sword, hero-power full, switch to it.
+function zm8_soe_give_sword(n_sword_level)
+{
+    if (!isdefined(level.sword_quest) || !isdefined(level.sword_quest.weapons) || !isdefined(self.characterindex))
+    {
+        return false;
+    }
+
+    wpn_sword = level.sword_quest.weapons[self.characterindex][n_sword_level];
+
+    if (!isdefined(wpn_sword))
+    {
+        return false;
+    }
+
+    if (isdefined(self.sword_quest))
+    {
+        self.sword_quest.upgrade_stage = n_sword_level;
+    }
+
+    // stock give takes the previous sword first; hero weapons occupy one
+    // slot, so weapon_give handles the handover
+    self scripts\zm\_zm_weapons::weapon_give(wpn_sword, 0, 0, 1);
+    self.current_sword = self.current_hero_weapon;
+    self.sword_power = 1;
+
+    n_slot = self gadgetgetslot(wpn_sword);
+
+    if (n_slot >= 0)
+    {
+        self gadgetpowerset(n_slot, 100);
+    }
+
+    self switchtoweapon(wpn_sword);
+    return true;
+}
+
+// Cheat: give every active player their character's Apothicon sword.
+function zm8_soe_cmd_swords(args)
+{
+    if (getdvarstring("mapname") != "zm_zod")
+    {
+        zm8_announce("^1zm8: zm8_soe_swords only works on Shadows of Evil");
+        return;
+    }
+
+    if (!isdefined(level.sword_quest) || !isdefined(level.sword_quest.weapons))
+    {
+        zm8_announce("^1zm8: sword system not initialized on this map");
+        return;
+    }
+
+    n_level = 2;
+
+    if (isdefined(args) && args.size >= 1 && args[0] == "1")
+    {
+        n_level = 1;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        if (player zm8_soe_give_sword(n_level))
+        {
+            count++;
+        }
+    }
+
+    zm8_announce("^2zm8: gave swords (level " + n_level + ") to " + count + " player(s)");
+}
+
+// Cheat: give every active player the upgraded Apothicon Servant. The four
+// idgun variants match the character indexes.
+function zm8_soe_cmd_servant(args)
+{
+    if (getdvarstring("mapname") != "zm_zod")
+    {
+        zm8_announce("^1zm8: zm8_soe_servant only works on Shadows of Evil");
+        return;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        n_variant = 0;
+
+        if (isdefined(player.characterindex))
+        {
+            n_variant = player.characterindex % 4;
+        }
+
+        player zm8_soe_give_servant(n_variant);
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave the upgraded Apothicon Servant to " + count + " player(s)");
+}
+
+function zm8_soe_give_servant(n_variant)
+{
+    w_new = getweapon("idgun_upgraded_" + n_variant);
+
+    if (self hasweapon(w_new))
+    {
+        self setweaponammostock(w_new, w_new.maxammo);
+        self setweaponammoclip(w_new, w_new.clipsize);
+        return;
+    }
+
+    // take a base variant if held, else free a primary slot when full
+    took_base = false;
+
+    for (v = 0; v < 4; v++)
+    {
+        w_base = getweapon("idgun_" + v);
+
+        if (self hasweapon(w_base))
+        {
+            self scripts\zm\_zm_weapons::weapon_take(w_base);
+            took_base = true;
+        }
+    }
+
+    if (!took_base)
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self zm8_take_primary_for_slot();
+        }
+    }
+
+    self scripts\zm\_zm_weapons::weapon_give(w_new, 0, 0, 1);
+    self setweaponammostock(w_new, w_new.maxammo);
+    self setweaponammoclip(w_new, w_new.clipsize);
+    self switchtoweapon(w_new);
+}
+
+// TEST cheat: jump the main quest to the keeper/boss phase. The map's own
+// sequencing waits ritual_pap_complete, then ee_begin fires by itself once
+// every active player holds an upgraded sword - so force the ritual flags
+// and hand the swords out.
+function zm8_soe_cmd_eecomplete(args)
+{
+    if (getdvarstring("mapname") != "zm_zod")
+    {
+        zm8_announce("^1zm8: zm8_soe_eecomplete only works on Shadows of Evil");
+        return;
+    }
+
+    if (!isdefined(level.flag) || !isdefined(level.flag["ritual_pap_complete"]))
+    {
+        zm8_announce("^1zm8: quest system not initialized on this map");
+        return;
+    }
+
+    if (isdefined(level.flag["ee_begin"]) && level.flag["ee_begin"])
+    {
+        zm8_announce("^3zm8: quest is already at the keeper phase or beyond");
+        return;
+    }
+
+    zm8_announce("^2zm8: TEST - forcing the rituals complete and handing out swords");
+    level thread zm8_soe_eecomplete_run();
+}
+
+function zm8_soe_eecomplete_run()
+{
+    level endon("end_game");
+
+    if (isdefined(level.flag["ritual_all_characters_complete"]) && !level.flag["ritual_all_characters_complete"])
+    {
+        level scripts\shared\flag_shared::set("ritual_all_characters_complete");
+        zm8_announce("^2zm8: forced quest flag 'ritual_all_characters_complete'");
+        wait 2;
+    }
+
+    if (!level.flag["ritual_pap_complete"])
+    {
+        level scripts\shared\flag_shared::set("ritual_pap_complete");
+        zm8_announce("^2zm8: forced quest flag 'ritual_pap_complete'");
+        wait 2;
+    }
+
+    zm8_soe_cmd_swords(undefined);
+    zm8_announce("^3zm8: ee_begin fires once everyone holds a sword - keeper phase next");
 }

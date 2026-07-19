@@ -175,6 +175,30 @@ zm8_gk_weapons [kind]
 zm8_gk_gauntlet     skip the gauntlet incubation quest + give it.
 
 
+SHADOWS OF EVIL COMMANDS (zm8_soe_*) AND AUTOMATIC FIXES
+--------------------------------------------------------
+Fixed automatically (no command needed):
+- Round spawner crash: the zombie spawn-delay formula only covers
+  1-4 players and script-errors with a 5th player. zm8 swaps in a
+  clamped copy (5-8 get 4-player pacing).
+- Sword gate: the keeper phase (ee_begin) waits until EVERY active
+  player holds their character's upgraded Apothicon sword, but sword
+  progress is per character - players 5-8 share a character and can
+  never earn their own. zm8 hands a duplicate the sword once their
+  "character twin" earned it.
+Rituals/relics/teleporters are per-character and tolerate index
+twins sharing progress.
+
+zm8_soe_eecomplete  TESTING CHEAT: force the ritual flags and hand
+                    out upgraded swords - the keeper/boss phase then
+                    starts on its own.
+zm8_soe_swords [1|2]
+                    cheat: give every living player their character's
+                    Apothicon sword (1 = base, 2 = upgraded/default).
+zm8_soe_servant     cheat: give every living player the upgraded
+                    Apothicon Servant (variant matches character).
+
+
 KNOWN LIMITATIONS
 -----------------
 - Scoreboard/HUD is built for 4 players; extra players may not show
