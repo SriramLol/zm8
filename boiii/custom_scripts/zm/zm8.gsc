@@ -2470,21 +2470,28 @@ function zm8_character_index_fixer()
 }
 
 // Zombie counter, top left: zombies left to spawn this round + currently alive
+// IMPORTANT: hudelem setText() with a CHANGING string allocates a brand-new
+// engine configstring on every update (visible in console as endless
+// "Registering configstring index NNNN" lines). The table is finite, so a
+// long game exhausts it and the engine corrupts - this was the recurring
+// "crash after a while" (ScrVar_ReleaseValue access violations) in every
+// extended session. Numeric setValue() elems render without allocating any
+// strings; the two labels are set exactly once each.
 function zm8_zombie_counter()
 {
     level endon("end_game");
 
-    elem = newhudelem();
-    elem.alignx = "left";
-    elem.aligny = "top";
-    elem.horzalign = "user_left";
-    elem.vertalign = "user_top";
-    elem.x = 10;
-    elem.y = 10;
-    elem.fontscale = 1.5;
-    elem.color = (1, 0.4, 0.4);
-    elem.alpha = 0.9;
-    elem.hidewheninmenu = true;
+    label_spawning = zm8_counter_elem(10);
+    label_spawning setText("Spawning:");
+
+    value_spawning = zm8_counter_elem(108);
+    value_spawning setValue(0);
+
+    label_alive = zm8_counter_elem(160);
+    label_alive setText("Alive:");
+
+    value_alive = zm8_counter_elem(225);
+    value_alive setValue(0);
 
     last_spawning = -1;
     last_alive = -1;
@@ -2500,15 +2507,36 @@ function zm8_zombie_counter()
 
         alive = scripts\shared\ai\zombie_utility::get_current_zombie_count();
 
-        if (spawning != last_spawning || alive != last_alive)
+        if (spawning != last_spawning)
         {
-            elem setText("Spawning: " + spawning + "  Alive: " + alive);
+            value_spawning setValue(spawning);
             last_spawning = spawning;
+        }
+
+        if (alive != last_alive)
+        {
+            value_alive setValue(alive);
             last_alive = alive;
         }
 
         wait 0.5;
     }
+}
+
+function zm8_counter_elem(x)
+{
+    elem = newhudelem();
+    elem.alignx = "left";
+    elem.aligny = "top";
+    elem.horzalign = "user_left";
+    elem.vertalign = "user_top";
+    elem.x = x;
+    elem.y = 10;
+    elem.fontscale = 1.5;
+    elem.color = (1, 0.4, 0.4);
+    elem.alpha = 0.9;
+    elem.hidewheninmenu = true;
+    return elem;
 }
 
 // ========================== Origins (zm8_origins_*) ==========================
