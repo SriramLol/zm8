@@ -15,6 +15,9 @@ FEATURES
   they get a shared pack you choose with the included gum picker
 - Optional permanent all-perks for everyone (host toggle)
 - Carpenter power-up removed from the drop pool (crash prevention)
+- Server client slots forced to 8 every game (com_maxclients /
+  party_maxplayers) - without this the listen server can keep the
+  stock 4 slots and refuse the 5th connection outright
 
 IMPORTANT: ONLY THE HOST NEEDS THIS MOD.
 Friends joining your game install nothing - they just need the same

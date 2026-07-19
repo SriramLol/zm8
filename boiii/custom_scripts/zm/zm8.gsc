@@ -50,6 +50,17 @@ autoexec function zm8_init()
     wait 6;
     zm8_announce("^2zm8 mod loaded - 8 player cap, mid-round auto-spawn on");
 
+    // AUTOMATIC 5-8 COMPATIBILITY FIX: the client's own party lua copies
+    // LobbyData.maxClients (stock zombies: 4) into com_maxclients /
+    // party_maxplayers, and com_maxclients is what actually gates connects
+    // to the listen server. Our 8-slot lobby lua can lose that race
+    // depending on lua load order, leaving the server with 4 client slots
+    // (observed: spawnBot stopped at host + 3 bots; a real 5th player
+    // would be refused or dropped the same way). com_maxclients is applied
+    // live for direct connects, so force both here every game.
+    setdvar("com_maxclients", 8);
+    setdvar("party_maxplayers", 8);
+
     // per-game defaults: cheats off, auto-spawn on (toggles last one game)
     level.zm8_allperks = false;
     level.zm8_godmode = false;

@@ -11,6 +11,7 @@ Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map �
 - GobbleGums for players 5–8 — the game normally gives them none; they get a shared pack you pick with the included dropdown gum picker (type-to-filter)
 - Optional **permanent all-perks** for everyone (host console toggle, persists between games)
 - Carpenter power-up removed from the drop pool (crash prevention)
+- Server client slots forced to 8 every game (`com_maxclients`/`party_maxplayers`) — without this the listen server can keep the stock 4 slots and refuse the 5th connection outright
 
 ## How it works
 
