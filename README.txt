@@ -31,6 +31,7 @@ INSTALLATION
 
       <your BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
       <your BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
       <your BO3 folder>\launch-zm8.bat
       <your BO3 folder>\zm8-gum-picker.bat
@@ -208,9 +209,10 @@ and are auto-credited for players not in play: the network-console
                     force the "Love and War" quest
                     flags in order up to the boss phase. Wait for
                     Sophia to leave the computer, then everyone
-                    rides the sewer hatch into the arena. Skipped
-                    steps stay skipped - the ending cinematic may
-                    not play.
+                    rides the sewer hatch into the arena. The stock
+                    arena-start trigger activates automatically once
+                    everyone lands. Skipped steps stay skipped - the
+                    ending cinematic may not play.
 [TESTING CHEAT] zm8_gk_koth
                     credit ALL players for the network-console step;
                     this completes the objective and is a cheat.
@@ -308,6 +310,23 @@ stack tightly on it.
 [TESTING CHEAT] zm8_rev_servant
                     give every living player the upgraded Apothicon
                     Servant.
+
+SHANGRI-LA COMMANDS (zm8_shang_*) AND AUTOMATIC FIX
+---------------------------------------------------
+AUTOMATIC 5-8 COMPATIBILITY FIX (custom_scripts\zm_temple\
+zm8_temple.gsc, loads only on this map): stock Pack-a-Punch demands
+one pressure plate per CONNECTED player but the map has exactly 4
+plates - unreachable with 5+ connected and blocked by any spectator
+even at 2-4 players. zm8 detours the plate loop to require one plate
+per LIVING player capped at 4. No command needed: 5-8 player games
+press the plates exactly like a full 4-player game.
+The easter egg has no player-count gates. Two steps wait for ALL
+players to leave the anti-115/dynamite wall area; spectators follow
+living players, so walking away together resolves them.
+
+[TESTING CHEAT] zm8_shang_shrinkray
+                    give every living player the upgraded 31-79
+                    JGb215 shrink ray with full ammo.
 
 VERRUCKT
 --------

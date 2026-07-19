@@ -190,6 +190,19 @@ function zm8_powerup_pool_fixer()
 // Note for 5-8: the rift opens when every living player stands within 84
 // units of the rune portal - everyone must stack tightly on it.
 //
+// Shangri-La (zm_temple):
+//   AUTOMATIC 5-8 COMPATIBILITY FIX (lives in custom_scripts\zm_temple\
+//   zm8_temple.gsc, loads only on this map): stock Pack-a-Punch demands one
+//   pressure plate per CONNECTED player but the map has exactly 4 plates -
+//   unreachable with 5+ connected and blocked by any spectator. The helper
+//   detours the plate loop to require one plate per LIVING player capped
+//   at 4.
+//   zm8_shang_shrinkray  - TESTING CHEAT: give everyone the upgraded
+//                          31-79 JGb215 shrink ray
+//   EE note: two quest steps wait for ALL players to move away from the
+//   anti-115/dynamite wall - spectators follow living players, so this
+//   self-resolves; just walk away together.
+//
 // Verruckt (zm_asylum) - audited, NO map-specific code needed:
 //   no quest, no map wonder weapon, no scaling tables. The split spawn
 //   assigns 4 numbered points (2 per side); players 5-8 fall back to the
@@ -248,6 +261,9 @@ function zm8_register_commands()
     sys::addcommand(0, "zm8_rev_eecomplete");
     sys::addcommand(0, "zm8_rev_thundergun");
     sys::addcommand(0, "zm8_rev_servant");
+
+    // Shangri-La
+    sys::addcommand(0, "zm8_shang_shrinkray");
 
     level thread zm8_command_dispatch_loop();
 }
@@ -402,6 +418,10 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_rev_servant")
         {
             zm8_rev_cmd_servant(args);
+        }
+        else if (command_name == "zm8_shang_shrinkray")
+        {
+            zm8_shang_cmd_shrinkray(args);
         }
     }
 }
@@ -3058,8 +3078,94 @@ function zm8_gk_eecomplete_run()
         zm8_announce("^2zm8: forced quest flag 'weapon_cores_delivered'");
     }
 
+    // Stock waits for an unlabelled use-trigger after the sewer ride before
+    // it initializes the dragon fight. The full EE testing shortcut should
+    // carry the player through that final transition as well.
+    level thread zm8_gk_eecomplete_boss_start();
     zm8_announce("^3zm8: wait for Sophia at the computer, then everyone rides the sewer hatch");
-    zm8_announce("^3zm8: use zm8_gk_arena if the boss sequence does not start once everyone is in");
+    zm8_announce("^3zm8: the dragon fight will auto-start after everyone lands in the arena");
+}
+
+function zm8_gk_eecomplete_boss_start()
+{
+    level endon("end_game");
+    level scripts\shared\flag_shared::wait_till("players_in_arena");
+
+    // The first landing sets players_in_arena. Do not start the fight until
+    // the sewer trigger has accepted every participant and all rides finish.
+    while (isdefined(getent("ee_sewer_to_arena_trig", "targetname")))
+    {
+        if (isdefined(level.flag["dragon_boss_start"]) && level.flag["dragon_boss_start"])
+        {
+            return;
+        }
+
+        wait 0.25;
+    }
+
+    while (true)
+    {
+        traveling = false;
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            player = players[i];
+
+            if (zm8_gk_player_can_participate(player)
+                && isdefined(player.var_fa6d2a24) && player.var_fa6d2a24)
+            {
+                traveling = true;
+                break;
+            }
+        }
+
+        if (!traveling)
+        {
+            break;
+        }
+
+        wait 0.25;
+    }
+
+    // The stock handler creates this unitrigger after the first arena
+    // arrival, then waits for trigger_activated before spawning the dragon.
+    while (true)
+    {
+        if (isdefined(level.flag["dragon_boss_start"]) && level.flag["dragon_boss_start"])
+        {
+            return;
+        }
+
+        boss_start = scripts\codescripts\struct::get("ee_boss_start", "targetname");
+
+        if (isdefined(boss_start) && isdefined(boss_start.s_unitrigger))
+        {
+            break;
+        }
+
+        wait 0.25;
+    }
+
+    starter = undefined;
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (zm8_gk_player_can_participate(players[i]))
+        {
+            starter = players[i];
+            break;
+        }
+    }
+
+    if (!isdefined(starter))
+    {
+        return;
+    }
+
+    boss_start notify("trigger_activated", starter);
+    zm8_announce("^2zm8: arena start activated - dragon boss incoming");
 }
 
 // Unstick the boss-arena entry gate: the map waits for its sewer-ride
@@ -3962,4 +4068,43 @@ function zm8_rev_give_primary(base_name, upgraded_name)
     self setweaponammostock(w_new, w_new.maxammo);
     self setweaponammoclip(w_new, w_new.clipsize);
     self switchtoweapon(w_new);
+}
+
+// ========================== Shangri-La (zm8_shang_*) ==========================
+// The 5-8 player compatibility fix for this map (Pack-a-Punch pressure
+// plates) is a detour that must reference zm_temple-only scripts, so it
+// lives in custom_scripts\zm_temple\zm8_temple.gsc and loads only there.
+// Only the testing cheat below lives in the universal script.
+//
+// EE audit: the quest uses the old declare_sidequest API (no staged force
+// possible) and has no player-count gates. Two steps wait for ALL players
+// to leave the anti-115/dynamite wall area - spectators follow living
+// players, so walking away together resolves it.
+
+// TESTING CHEAT: give every living player the upgraded 31-79 JGb215.
+function zm8_shang_cmd_shrinkray(args)
+{
+    if (getdvarstring("mapname") != "zm_temple")
+    {
+        zm8_announce("^1zm8: zm8_shang_shrinkray only works on Shangri-La");
+        return;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        player zm8_rev_give_primary("shrink_ray", "shrink_ray_upgraded");
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave the upgraded shrink ray to " + count + " player(s)");
 }

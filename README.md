@@ -23,6 +23,7 @@ The 4-player limit in classic zombies is script-enforced, not an engine limit �
    ```
    <BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
    <BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
    <BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
    <BO3 folder>\launch-zm8.bat
    <BO3 folder>\zm8-gum-picker.bat
@@ -107,7 +108,7 @@ Two easter-egg gates count **every connected player** (spectators included) and 
 | Command | Effect |
 |---|---|
 | `zm8_gk_arena` | **5–8-player compatibility:** manually release the sewer/boss-arena all-connected-players gate if automatic recovery fails. Use only after every active participant has taken the sewer; stragglers miss the transport |
-| `zm8_gk_eecomplete` | **Testing cheat:** force the "Love and War" quest flags through the boss phase. Physical objectives are skipped and the ending sequence may not behave normally |
+| `zm8_gk_eecomplete` | **Testing cheat:** force the "Love and War" quest flags through the boss phase, then automatically activate the stock arena-start trigger after everyone finishes the sewer ride. Physical objectives are skipped and the ending sequence may not behave normally |
 | `zm8_gk_koth` | **Testing cheat:** credit every connected player for the network-console defense. This completes the objective rather than merely increasing its player capacity |
 | `zm8_gk_weapons [kind]` | **Testing cheat:** give every living player a wonder weapon — `fire` (GKZ-45 Mk3), `strike` (Dragon Strike), `gauntlet` or experimental `shield` |
 | `zm8_gk_gauntlet` | **Testing cheat:** skip the Gauntlet of Siegfried incubation quest and give out the gauntlet |
@@ -164,6 +165,16 @@ One thing to know with 5–8 (documented, no fix needed): the rift into the boss
 | `zm8_rev_eecomplete` | **Testing cheat:** force the main quest flags through Kronorium placement (character stones, shards, audio reels, toys, book). The keeper rune trial and the stack-on-the-portal rift entry remain manual |
 | `zm8_rev_thundergun` | **Testing cheat:** give every living player the upgraded Thundergun with full ammo |
 | `zm8_rev_servant` | **Testing cheat:** give every living player the upgraded Apothicon Servant |
+
+### Shangri-La commands (`zm8_shang_*`) and automatic fix
+
+**Automatic 5–8-player compatibility fix** (in `custom_scripts\zm_temple\zm8_temple.gsc`, which loads only on this map): stock Pack-a-Punch demands one pressure plate per **connected** player, but the map has exactly 4 plates — with a 5th player connected (or any spectator, even at 2–4 players) PaP is permanently unreachable. zm8 detours the plate loop to require one plate per **living** player, capped at the 4 physical plates. No command needed — 5–8 player games press the plates exactly like a full 4-player game.
+
+The easter egg itself has no player-count gates. Two steps wait for **all** players to leave the anti-115/dynamite wall area; spectators follow living players, so simply walking away together resolves them.
+
+| Command | Effect |
+|---|---|
+| `zm8_shang_shrinkray` | **Testing cheat:** give every living player the upgraded 31-79 JGb215 shrink ray with full ammo |
 
 ### Verrückt
 
