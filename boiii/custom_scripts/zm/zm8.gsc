@@ -4,9 +4,9 @@
 // Stock scripts\zm\_zm.gsc ends the game when GetPlayers().size > 4 in classic
 // modes (8 allowed for grief). The engine supports 8 zm clients, so re-cap the
 // check at 8 instead of removing it.
-// ezboiii 1.1.6 custom builtins are explicitly imported from the sys namespace.
-// Its direct-VM builtin handlers still reserve argument 0 for the removed
-// dispatcher hash, so pass a compatibility dummy before the real arguments.
+// ezboiii 1.1.7 temporarily restored its legacy custom-builtin dispatcher.
+// Custom builtins must therefore use the documented unqualified form with no
+// 1.1.6-era sys namespace or compatibility dummy argument.
 
 // The stock _zm.gsc ends the game when getplayers().size > 4 (8 for grief).
 // IMPORTANT: the game does NOT call player_too_many_players_check() directly
@@ -69,7 +69,7 @@ function zm8_player_cap_monitor()
 function zm8_announce(msg)
 {
     iprintlnbold(msg);
-    sys::println(0, msg);
+    println(msg);
 }
 
 autoexec function zm8_init()
@@ -100,9 +100,7 @@ autoexec function zm8_init()
     level.player_too_many_players_check = 1;
     level thread zm8_player_cap_monitor();
 
-    // Register after the listen server has entered the game. ezboiii 1.1.6's
-    // generated addcommand callback bridge only recognizes unqualified calls,
-    // which cannot be used because of its custom-builtin import regression.
+    // Register after the listen server has entered the game.
     zm8_register_commands();
 
     // let the intro blackscreen pass so the print is visible
@@ -173,7 +171,7 @@ function zm8_powerup_pool_fixer()
                     level.zombie_powerup_index = 0;
                 }
 
-                sys::println(0, "zm8: removed carpenter from the powerup pool");
+                println("zm8: removed carpenter from the powerup pool");
             }
         }
 
@@ -202,6 +200,11 @@ function zm8_powerup_pool_fixer()
 //                           (fire/void/storm/wolf; no arg = mix of all four)
 //   zm8_de_lightningready - fill the dragons and drive the stock lightning-
 //                           bow quest until its upgraded bow is on the altar
+//   zm8_de_lightningstep  - TEST cheat: advance exactly one stock lightning-
+//                           bow quest stage, preserving its current owner/team
+//   zm8_de_botlightning   - TEST cheat: make the first alive bot the stock
+//                           Lightning owner, then leave the host free to join
+//                           its team at the Lightning box in the undercroft
 //   zm8_de_ragnarok       - cheat: give everyone the Ragnarok DG-4
 //
 // Origins (zm_tomb) - guarded by mapname, no-ops elsewhere:
@@ -297,50 +300,52 @@ function zm8_powerup_pool_fixer()
 // still works), and character-index twins share helmet visuals.
 function zm8_register_commands()
 {
-    sys::addcommand(0, "zm8_allperks");
-    sys::addcommand(0, "zm8_godmode");
-    sys::addcommand(0, "zm8_spawn");
-    sys::addcommand(0, "zm8_autospawn");
-    sys::addcommand(0, "zm8_gum");
+    addcommand("zm8_allperks");
+    addcommand("zm8_godmode");
+    addcommand("zm8_spawn");
+    addcommand("zm8_autospawn");
+    addcommand("zm8_gum");
 
     // Der Eisendrache
-    sys::addcommand(0, "zm8_de_test");
-    sys::addcommand(0, "zm8_de_eecomplete");
-    sys::addcommand(0, "zm8_de_bossfight");
-    sys::addcommand(0, "zm8_de_bows");
-    sys::addcommand(0, "zm8_de_lightningready");
-    sys::addcommand(0, "zm8_de_ragnarok");
+    addcommand("zm8_de_test");
+    addcommand("zm8_de_eecomplete");
+    addcommand("zm8_de_bossfight");
+    addcommand("zm8_de_bows");
+    addcommand("zm8_de_lightningready");
+    addcommand("zm8_de_lightningstep");
+    addcommand("zm8_de_botlightning");
+    addcommand("zm8_de_ragnarok");
 
     // Origins
-    sys::addcommand(0, "zm8_origins_generators");
-    sys::addcommand(0, "zm8_origins_eecomplete");
-    sys::addcommand(0, "zm8_origins_eenext");
-    sys::addcommand(0, "zm8_origins_punch");
-    sys::addcommand(0, "zm8_origins_staffs");
+    addcommand("zm8_origins_generators");
+    addcommand("zm8_origins_eecomplete");
+    addcommand("zm8_origins_eenext");
+    addcommand("zm8_origins_punch");
+    addcommand("zm8_origins_staffs");
 
     // Gorod Krovi
-    sys::addcommand(0, "zm8_gk_eecomplete");
-    sys::addcommand(0, "zm8_gk_arena");
-    sys::addcommand(0, "zm8_gk_koth");
-    sys::addcommand(0, "zm8_gk_weapons");
-    sys::addcommand(0, "zm8_gk_gauntlet");
+    addcommand("zm8_gk_eecomplete");
+    addcommand("zm8_gk_arena");
+    addcommand("zm8_gk_koth");
+    addcommand("zm8_gk_weapons");
+    addcommand("zm8_gk_gauntlet");
 
     // Shadows of Evil
-    sys::addcommand(0, "zm8_soe_eecomplete");
-    sys::addcommand(0, "zm8_soe_swords");
-    sys::addcommand(0, "zm8_soe_servant");
+    addcommand("zm8_soe_eecomplete");
+    addcommand("zm8_soe_swords");
+    addcommand("zm8_soe_servant");
 
     // Moon
-    sys::addcommand(0, "zm8_moon_wavegun");
-    sys::addcommand(0, "zm8_moon_qed");
+    addcommand("zm8_moon_wavegun");
+    addcommand("zm8_moon_qed");
 
     // Revelations
-    sys::addcommand(0, "zm8_rev_eecomplete");
-    sys::addcommand(0, "zm8_rev_thundergun");
-    sys::addcommand(0, "zm8_rev_servant");
+    addcommand("zm8_rev_eecomplete");
+    addcommand("zm8_rev_thundergun");
+    addcommand("zm8_rev_servant");
 
     // Shangri-La
-    sys::addcommand(0, "zm8_shang_shrinkray");
+    addcommand("zm8_shang_shrinkray");
 
     level thread zm8_command_dispatch_loop();
 }
@@ -364,9 +369,12 @@ function zm8_command_dispatch_loop()
 
     while (true)
     {
-        // Zero arguments selects the next queued command, so no compatibility
-        // dummy is needed here. Poll once rather than once per registered name.
-        command_line = sys::getcommand();
+        // ezboiii 1.1.7 dispatches custom builtins with a hidden hash at VM
+        // parameter 0. Its getcommand handler treats any parameter count >= 1
+        // as if a real filter exists at parameter 1, so a zero-argument call
+        // reads past the supplied parameters. Pass an empty filter explicitly;
+        // the handler then safely falls through to the global command queue.
+        command_line = getcommand("");
 
         if (!isdefined(command_line) || command_line == "")
         {
@@ -378,6 +386,7 @@ function zm8_command_dispatch_loop()
 
         if (!isdefined(tokens) || tokens.size == 0)
         {
+            wait 0.05;
             continue;
         }
 
@@ -423,6 +432,14 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_de_lightningready")
         {
             zm8_de_cmd_lightningready(args);
+        }
+        else if (command_name == "zm8_de_lightningstep")
+        {
+            zm8_de_cmd_lightningstep(args);
+        }
+        else if (command_name == "zm8_de_botlightning")
+        {
+            zm8_de_cmd_botlightning(args);
         }
         else if (command_name == "zm8_de_ragnarok")
         {
@@ -1055,7 +1072,36 @@ function zm8_de_wait_for_flag(flag_name, seconds)
 function zm8_de_lightning_fail(stage_name)
 {
     level.zm8_de_lightningready_running = false;
+    level.zm8_de_lightningstep_running = false;
     zm8_announce("^1zm8: lightning setup stalled at " + stage_name);
+}
+
+function zm8_de_flag_is_set(flag_name)
+{
+    return isdefined(level.flag) && isdefined(level.flag[flag_name]) && level.flag[flag_name];
+}
+
+function zm8_de_wait_for_storm_state(wanted_state, seconds)
+{
+    ticks = seconds * 4;
+
+    for (i = 0; i < ticks; i++)
+    {
+        if (level scripts\shared\clientfield_shared::get("quest_state_storm") >= wanted_state)
+        {
+            return true;
+        }
+
+        wait 0.25;
+    }
+
+    return false;
+}
+
+function zm8_de_lightningstep_done(message)
+{
+    level.zm8_de_lightningstep_running = false;
+    zm8_announce("^2zm8: lightning step complete - " + message);
 }
 
 // Test driver for the stock DE weapon quest. It feeds the same counters,
@@ -1070,9 +1116,10 @@ function zm8_de_cmd_lightningready(args)
         return;
     }
 
-    if (isdefined(level.zm8_de_lightningready_running) && level.zm8_de_lightningready_running)
+    if ((isdefined(level.zm8_de_lightningready_running) && level.zm8_de_lightningready_running) ||
+        (isdefined(level.zm8_de_lightningstep_running) && level.zm8_de_lightningstep_running))
     {
-        zm8_announce("^3zm8: lightning setup is already running");
+        zm8_announce("^3zm8: a lightning quest test command is already running");
         return;
     }
 
@@ -1092,6 +1139,488 @@ function zm8_de_cmd_lightningready(args)
 
     level.zm8_de_lightningready_running = true;
     level thread zm8_de_lightningready_thread(players[0]);
+}
+
+// Advance one meaningful piece of the stock Lightning Bow coroutine per use.
+// This is intentionally separate from zm8_de_lightningready so a tester can
+// hand the quest to their teammate between commands and verify that the next
+// stock stage continues for the new active runner.
+function zm8_de_cmd_lightningstep(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_de_lightningstep only works on Der Eisendrache");
+        return;
+    }
+
+    if ((isdefined(level.zm8_de_lightningready_running) && level.zm8_de_lightningready_running) ||
+        (isdefined(level.zm8_de_lightningstep_running) && level.zm8_de_lightningstep_running))
+    {
+        zm8_announce("^3zm8: a lightning quest test command is already running");
+        return;
+    }
+
+    if (zm8_de_flag_is_set("elemental_storm_spawned"))
+    {
+        zm8_announce("^3zm8: upgraded lightning bow is already on its altar");
+        return;
+    }
+
+    players = getplayers();
+
+    if (players.size == 0 || !isdefined(players[0]) || !isalive(players[0]))
+    {
+        zm8_announce("^1zm8: host player is not alive");
+        return;
+    }
+
+    level.zm8_de_lightningstep_running = true;
+    level thread zm8_de_lightningstep_thread(players[0]);
+}
+
+function zm8_de_first_alive_bot()
+{
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (isdefined(player) && isalive(player) && player.sessionstate == "playing" &&
+            isdefined(player.pers) && isdefined(player.pers["isBot"]) && player.pers["isBot"])
+        {
+            return player;
+        }
+    }
+
+    return undefined;
+}
+
+// Solo test driver for the shared Lightning team. The map-only helper owns
+// the actual handoff; this universal script communicates with it through a
+// short-lived level request so it never statically links a zm_castle script.
+// If necessary, the first two stock-like test steps fill the dragons and
+// start Lightning for the host. The helper then transfers the live stock
+// coroutine to the bot and removes the host's automatic team enrollment.
+function zm8_de_cmd_botlightning(args)
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        zm8_announce("^1zm8: zm8_de_botlightning only works on Der Eisendrache");
+        return;
+    }
+
+    if ((isdefined(level.zm8_de_lightningready_running) && level.zm8_de_lightningready_running) ||
+        (isdefined(level.zm8_de_lightningstep_running) && level.zm8_de_lightningstep_running) ||
+        (isdefined(level.zm8_de_botlightning_running) && level.zm8_de_botlightning_running))
+    {
+        zm8_announce("^3zm8: a lightning quest test command is already running");
+        return;
+    }
+
+    players = getplayers();
+
+    if (players.size == 0 || !isdefined(players[0]) || !isalive(players[0]))
+    {
+        zm8_announce("^1zm8: host player is not alive");
+        return;
+    }
+
+    bot = zm8_de_first_alive_bot();
+
+    if (!isdefined(bot))
+    {
+        zm8_announce("^1zm8: no alive bot found - use spawnbot 1 and wait for it to spawn");
+        return;
+    }
+
+    if (zm8_de_flag_is_set("elemental_storm_spawned"))
+    {
+        zm8_announce("^3zm8: Lightning quest is already complete; restart the map to test joining");
+        return;
+    }
+
+    level.zm8_de_botlightning_running = true;
+    level thread zm8_de_botlightning_setup_thread(players[0], bot);
+}
+
+function zm8_de_botlightning_setup_thread(host, bot)
+{
+    level endon("end_game");
+
+    if (!zm8_de_flag_is_set("soul_catchers_charged"))
+    {
+        level.zm8_de_lightningstep_running = true;
+        zm8_de_lightningstep_thread(host);
+
+        if (!zm8_de_flag_is_set("soul_catchers_charged"))
+        {
+            level.zm8_de_botlightning_running = false;
+            return;
+        }
+    }
+
+    if (!isdefined(level.var_f8d1dc16))
+    {
+        level.zm8_de_lightningstep_running = true;
+        zm8_de_lightningstep_thread(host);
+
+        if (!isdefined(level.var_f8d1dc16))
+        {
+            level.zm8_de_botlightning_running = false;
+            return;
+        }
+    }
+
+    if (!isdefined(bot) || !isalive(bot) || bot.sessionstate != "playing")
+    {
+        level.zm8_de_botlightning_running = false;
+        zm8_announce("^1zm8: selected bot disappeared before the Lightning handoff");
+        return;
+    }
+
+    level.zm8_de_bot_lightning_request = bot;
+    zm8_announce("^3zm8: handing the stock Lightning quest to the first bot...");
+}
+
+function zm8_de_lightningstep_thread(host)
+{
+    level endon("end_game");
+
+    // Step 1: legitimately release the stock dragon-completion path so it
+    // creates the altar, Wrath model, FX and per-player pickup triggers.
+    if (!zm8_de_flag_is_set("soul_catchers_charged"))
+    {
+        for (t = 0; t < 80 && (!isdefined(level.soul_catchers) || level.soul_catchers.size < 3); t++)
+        {
+            wait 0.25;
+        }
+
+        if (!isdefined(level.soul_catchers) || level.soul_catchers.size < 3)
+        {
+            zm8_de_lightning_fail("dragon initialization");
+            return;
+        }
+
+        level.var_63e17dd5 = host;
+
+        for (i = 0; i < level.soul_catchers.size; i++)
+        {
+            dragon = level.soul_catchers[i];
+
+            if (!isdefined(dragon.is_charged) || !dragon.is_charged)
+            {
+                if (!isdefined(dragon.var_98730ffa) || dragon.var_98730ffa == 0)
+                {
+                    dragon notify("first_zombie_killed_in_zone", host);
+                }
+
+                dragon.is_eating = 0;
+                dragon.var_98730ffa = 8;
+            }
+        }
+
+        if (!zm8_de_wait_for_flag("soul_catchers_charged", 20))
+        {
+            zm8_de_lightning_fail("dragon completion");
+            return;
+        }
+
+        zm8_de_lightningstep_done("all dragons filled; Wrath altar spawned");
+        return;
+    }
+
+    // Step 2: shoot the weather vane, spawn the broken arrow and bind the
+    // stock quest to the host. Later calls use whichever teammate is the
+    // active stock owner rather than assuming the console host owns it.
+    if (!isdefined(level.var_f8d1dc16))
+    {
+        for (t = 0; t < 80 && !isdefined(level.var_15acc392); t++)
+        {
+            wait 0.25;
+        }
+
+        if (!isdefined(level.var_15acc392))
+        {
+            zm8_de_lightning_fail("Wrath of the Ancients spawn");
+            return;
+        }
+
+        host zm8_de_give_base_bow();
+        wait 0.5;
+        weather_trigger = getent("aq_es_weather_vane_trig", "targetname");
+
+        if (!isdefined(weather_trigger))
+        {
+            zm8_de_lightning_fail("weather vane");
+            return;
+        }
+
+        w_base = getweapon("elemental_bow");
+        weather_trigger notify("damage", 1, host, (0, 0, 1), weather_trigger.origin, "MOD_PROJECTILE", "tag_origin", "", "", w_base);
+        start_struct = scripts\codescripts\struct::get("quest_start_elemental_storm");
+
+        for (t = 0; t < 120 && (!isdefined(level.var_18c771ad) || !isdefined(start_struct) || !isdefined(start_struct.var_67b5dd94)); t++)
+        {
+            wait 0.25;
+        }
+
+        if (!isdefined(level.var_18c771ad) || !isdefined(start_struct) || !isdefined(start_struct.var_67b5dd94))
+        {
+            zm8_de_lightning_fail("broken arrow spawn");
+            return;
+        }
+
+        for (t = 0; t < 40 && (!isdefined(level.var_f8d1dc16) || level.var_f8d1dc16 != host); t++)
+        {
+            start_struct.var_67b5dd94 notify("trigger", host);
+            wait 0.5;
+        }
+
+        if (!isdefined(level.var_f8d1dc16) || level.var_f8d1dc16 != host)
+        {
+            zm8_de_lightning_fail("broken arrow pickup");
+            return;
+        }
+
+        zm8_de_lightningstep_done("Lightning quest started for the host");
+        return;
+    }
+
+    runner = level.var_f8d1dc16;
+
+    if (!isdefined(runner) || !isalive(runner) || runner.sessionstate != "playing")
+    {
+        zm8_de_lightning_fail("active Lightning teammate");
+        return;
+    }
+
+    storm_state = level scripts\shared\clientfield_shared::get("quest_state_storm");
+    w_base = getweapon("elemental_bow");
+
+    // Step 3: the three outdoor bonfires.
+    if (storm_state <= 1)
+    {
+        for (t = 0; t < 80 && !isdefined(level.var_c5c6a918); t++)
+        {
+            wait 0.25;
+        }
+
+        beacons = getentarray("aq_es_beacon_trig", "script_noteworthy");
+
+        if (beacons.size < 3)
+        {
+            zm8_de_lightning_fail("bonfire initialization");
+            return;
+        }
+
+        for (i = 0; i < beacons.size; i++)
+        {
+            runner notify("projectile_impact", w_base, beacons[i].origin, 0, runner, (0, 0, 1));
+            wait 0.25;
+        }
+
+        if (!zm8_de_wait_for_storm_state(2, 15))
+        {
+            zm8_de_lightning_fail("three outdoor bonfires");
+            return;
+        }
+
+        zm8_de_lightningstep_done("three outdoor bonfires lit");
+        return;
+    }
+
+    // Step 4: the wall-run plates require engine wall-run state, so mirror
+    // the fifth plate's stock completion flag and visual clientfields.
+    if (storm_state == 2)
+    {
+        wall_triggers = getentarray("aq_es_wallrun_trigger", "targetname");
+
+        for (i = 0; i < wall_triggers.size; i++)
+        {
+            if (isdefined(wall_triggers[i].target))
+            {
+                rune_mover = getent(wall_triggers[i].target, "targetname");
+
+                if (isdefined(rune_mover))
+                {
+                    rune_mover scripts\shared\clientfield_shared::set("wallrun_fx", 2);
+                }
+            }
+        }
+
+        runner.var_a4f04654 = wall_triggers.size;
+        level.var_49593fd9 = wall_triggers;
+        level scripts\shared\flag_shared::set("elemental_storm_wallrun");
+
+        if (!zm8_de_wait_for_storm_state(3, 15))
+        {
+            zm8_de_lightning_fail("pyramid wall-run plates");
+            return;
+        }
+
+        zm8_de_lightningstep_done("pyramid wall-run plates completed");
+        return;
+    }
+
+    // Steps 5 and 6 are separately callable so ownership can be transferred
+    // between filling the urns and firing their charged shots at the fires.
+    if (!zm8_de_flag_is_set("elemental_storm_batteries"))
+    {
+        battery_volumes = getentarray("aq_es_battery_volume", "script_noteworthy");
+
+        for (t = 0; t < 80 && (battery_volumes.size == 0 || !isdefined(battery_volumes[0].var_bb486f65)); t++)
+        {
+            wait 0.25;
+            battery_volumes = getentarray("aq_es_battery_volume", "script_noteworthy");
+        }
+
+        if (battery_volumes.size == 0)
+        {
+            zm8_de_lightning_fail("lightning urn initialization");
+            return;
+        }
+
+        for (i = 0; i < battery_volumes.size; i++)
+        {
+            for (n = 0; n < 5; n++)
+            {
+                battery_volumes[i] notify("killed");
+                wait 0.05;
+            }
+        }
+
+        if (!zm8_de_wait_for_flag("elemental_storm_batteries", 15))
+        {
+            zm8_de_lightning_fail("lightning urn souls");
+            return;
+        }
+
+        zm8_de_lightningstep_done("all three lightning urns filled");
+        return;
+    }
+
+    if (!zm8_de_flag_is_set("elemental_storm_beacons_charged"))
+    {
+        beacons = getentarray("aq_es_beacon_trig", "script_noteworthy");
+        charged_batteries = getentarray("aq_es_battery_volume_charged", "script_noteworthy");
+
+        for (i = 0; i < beacons.size; i++)
+        {
+            projectile = spawnstruct();
+            projectile.var_e4594d27 = 1;
+
+            if (charged_batteries.size > 0)
+            {
+                projectile.var_8f88d1fd = charged_batteries[i % charged_batteries.size];
+            }
+
+            runner notify("projectile_impact", w_base, beacons[i].origin, 0, projectile, (0, 0, 1));
+            wait 0.25;
+        }
+
+        if (!zm8_de_wait_for_flag("elemental_storm_beacons_charged", 15))
+        {
+            zm8_de_lightning_fail("charged bonfires");
+            return;
+        }
+
+        zm8_de_lightningstep_done("charged urn shots returned to the bonfires");
+        return;
+    }
+
+    // Step 7: reforge the arrow. The altar has two sequential stock use
+    // waits, so repeat the notify across the animation boundary.
+    if (!zm8_de_flag_is_set("elemental_storm_repaired"))
+    {
+        reforge = scripts\codescripts\struct::get("quest_reforge_elemental_storm");
+
+        for (t = 0; t < 120 && (!isdefined(reforge) || !isdefined(reforge.var_67b5dd94)); t++)
+        {
+            wait 0.25;
+        }
+
+        if (!isdefined(reforge) || !isdefined(reforge.var_67b5dd94))
+        {
+            zm8_de_lightning_fail("arrow reforge altar");
+            return;
+        }
+
+        for (t = 0; t < 120 && !zm8_de_flag_is_set("elemental_storm_repaired"); t++)
+        {
+            reforge.var_67b5dd94 notify("trigger", runner);
+            wait 0.5;
+        }
+
+        if (!zm8_de_flag_is_set("elemental_storm_repaired"))
+        {
+            zm8_de_lightning_fail("arrow reforge");
+            return;
+        }
+
+        zm8_de_lightningstep_done("broken arrow reforged");
+        return;
+    }
+
+    pedestal = scripts\codescripts\struct::get("upgraded_bow_struct_elemental_storm", "targetname");
+
+    for (t = 0; t < 80 && (!isdefined(pedestal) || !isdefined(pedestal.var_67b5dd94)); t++)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(pedestal) || !isdefined(pedestal.var_67b5dd94))
+    {
+        zm8_de_lightning_fail("lightning arrow pedestal");
+        return;
+    }
+
+    // Step 8: place the reforged arrow in the pyramid soul box.
+    if (!zm8_de_flag_is_set("elemental_storm_placed"))
+    {
+        for (t = 0; t < 80 && !zm8_de_flag_is_set("elemental_storm_placed"); t++)
+        {
+            pedestal.var_67b5dd94 notify("trigger", runner);
+            wait 0.5;
+        }
+
+        if (!zm8_de_flag_is_set("elemental_storm_placed"))
+        {
+            zm8_de_lightning_fail("placing arrow in the soul box");
+            return;
+        }
+
+        zm8_de_lightningstep_done("reforged arrow placed in the soul box");
+        return;
+    }
+
+    // Step 9: fill its stock soul counter and release the completion wait.
+    if (!zm8_de_flag_is_set("elemental_storm_upgraded"))
+    {
+        pedestal.var_ce58f456 = 20;
+        level scripts\shared\flag_shared::set("elemental_storm_upgraded");
+        zm8_de_lightningstep_done("pyramid soul box filled");
+        return;
+    }
+
+    // Step 10: the final stock use creates the real upgraded pickup/model.
+    for (t = 0; t < 160 && !zm8_de_flag_is_set("elemental_storm_spawned"); t++)
+    {
+        if (isdefined(pedestal.var_67b5dd94))
+        {
+            pedestal.var_67b5dd94 notify("trigger", runner);
+        }
+
+        wait 0.5;
+    }
+
+    if (!zm8_de_flag_is_set("elemental_storm_spawned"))
+    {
+        zm8_de_lightning_fail("upgraded bow spawn");
+        return;
+    }
+
+    zm8_de_lightningstep_done("upgraded Lightning Bow spawned on its altar");
 }
 
 function zm8_de_lightningready_thread(host)
@@ -1384,7 +1913,7 @@ function zm8_de_bow_sharing_init()
     level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_rune_prison", "rune_prison_spawned", "rune_prison");
     level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_elemental_storm", "elemental_storm_spawned", "storm");
     level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_wolf_howl", "wolf_howl_spawned", "wolf_howl");
-    sys::println(0, "zm8: DE upgraded bow pedestals allow duplicate pickups");
+    println("zm8: DE upgraded bow pedestals allow duplicate pickups");
 }
 
 function zm8_de_player_has_upgraded_bow(player)
@@ -1419,29 +1948,38 @@ function zm8_de_shared_bow_pedestal(struct_name, ready_flag, element)
 
     if (!isdefined(bow_struct))
     {
-        sys::println(0, "zm8: missing DE bow pedestal struct " + struct_name);
+        println("zm8: missing DE bow pedestal struct " + struct_name);
         return;
     }
 
-    pickup = spawn("trigger_radius", bow_struct.origin, 1, 80, 100);
-    pickup setcursorhint("HINT_NOICON");
+    pedestal_model_name = "pedestal_wolf_bow_place";
+    bow_label = "WOLF";
 
     if (element == "demongate")
     {
-        pickup sethintstring(&"ZM_CASTLE_PICK_UP_FIRE_BOW");
+        pedestal_model_name = "pedestal_demon_bow_place";
+        bow_label = "FIRE";
     }
     else if (element == "rune_prison")
     {
-        pickup sethintstring(&"ZM_CASTLE_PICK_UP_ICE_BOW");
+        pedestal_model_name = "pedestal_rune_bow_place";
+        bow_label = "VOID";
     }
     else if (element == "storm")
     {
-        pickup sethintstring(&"ZM_CASTLE_PICK_UP_LIGHTNING_BOW");
+        pedestal_model_name = "pedestal_storm_bow_place";
+        bow_label = "LIGHTNING";
     }
-    else
+
+    pedestal_model = getent(pedestal_model_name, "targetname");
+    pickup_origin = bow_struct.origin;
+
+    if (isdefined(pedestal_model))
     {
-        pickup sethintstring(&"ZM_CASTLE_PICK_UP_WIND_BOW");
+        pickup_origin = pedestal_model.origin;
     }
+
+    nearby_players = [];
 
     while (true)
     {
@@ -1452,23 +1990,75 @@ function zm8_de_shared_bow_pedestal(struct_name, ready_flag, element)
             bow_struct.var_d4a62e6b show();
         }
 
-        pickup waittill("trigger", player);
+        players = getplayers();
 
-        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        for (i = 0; i < players.size; i++)
         {
-            continue;
+            player = players[i];
+
+            if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+            {
+                continue;
+            }
+
+            player_id = player getentitynumber();
+            is_near = distance(player.origin, pickup_origin) <= 175;
+
+            if (!is_near)
+            {
+                if (isdefined(nearby_players[player_id]))
+                {
+                    nearby_players[player_id] = undefined;
+                }
+
+                continue;
+            }
+
+            if (!isdefined(nearby_players[player_id]))
+            {
+                nearby_players[player_id] = true;
+
+                if (!zm8_de_player_has_upgraded_bow(player))
+                {
+                    player iprintlnbold("^3zm8: " + bow_label + " BOW - press F to take a duplicate");
+                }
+            }
+
+            if (!(player usebuttonpressed()) ||
+                (isdefined(player.zm8_de_bow_pickup_use_locked) && player.zm8_de_bow_pickup_use_locked))
+            {
+                continue;
+            }
+
+            player.zm8_de_bow_pickup_use_locked = true;
+            player thread zm8_de_unlock_bow_pickup_use_after_release();
+
+            // A base bow is replaced as usual. Once a player owns any upgraded
+            // bow, another pedestal cannot silently swap it.
+            if (zm8_de_player_has_upgraded_bow(player))
+            {
+                continue;
+            }
+
+            player zm8_de_give_bow(element);
+            player playsound("zmb_bow_pickup");
         }
 
-        // A base bow is replaced as usual. Once a player owns any upgraded
-        // bow, another pedestal cannot silently swap it.
-        if (zm8_de_player_has_upgraded_bow(player))
-        {
-            continue;
-        }
-
-        player zm8_de_give_bow(element);
-        player playsound("zmb_bow_pickup");
+        wait 0.05;
     }
+}
+
+function zm8_de_unlock_bow_pickup_use_after_release()
+{
+    self endon("disconnect");
+
+    while (self usebuttonpressed())
+    {
+        wait 0.05;
+    }
+
+    wait 0.15;
+    self.zm8_de_bow_pickup_use_locked = false;
 }
 
 // Give every player the Ragnarok DG-4 exactly like the stock pickup trigger:
@@ -1716,7 +2306,7 @@ function zm8_godmode_monitor()
         if (!(isdefined(level.zm8_godmode) && level.zm8_godmode)
             || !isdefined(level.zm8_godmode_host))
         {
-            wait 0.1;
+            wait 0.5;
             continue;
         }
 
@@ -1724,7 +2314,7 @@ function zm8_godmode_monitor()
 
         if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
         {
-            wait 0.1;
+            wait 0.5;
             continue;
         }
 
@@ -1745,19 +2335,21 @@ function zm8_godmode_monitor()
         {
             weapon = weapons[i];
 
-            if (isdefined(weapon.maxammo) && weapon.maxammo > 0)
+            if (isdefined(weapon.maxammo) && weapon.maxammo > 0
+                && player getweaponammostock(weapon) < weapon.maxammo)
             {
                 player setweaponammostock(weapon, weapon.maxammo);
             }
 
-            if (isdefined(weapon.clipsize) && weapon.clipsize > 0)
+            if (isdefined(weapon.clipsize) && weapon.clipsize > 0
+                && player getweaponammoclip(weapon) < weapon.clipsize)
             {
                 player setweaponammoclip(weapon, weapon.clipsize);
             }
         }
 
         // top up perks only every ~2s: a perk that cannot apply on this map
-        // would otherwise re-thread give_perk 10x/sec forever - constant
+        // would otherwise repeatedly thread give_perk forever - constant
         // script-variable churn on top of an 8-player game
         if (!isdefined(level.zm8_godmode_perk_ticks))
         {
@@ -1766,7 +2358,7 @@ function zm8_godmode_monitor()
 
         level.zm8_godmode_perk_ticks++;
 
-        if (level.zm8_godmode_perk_ticks >= 20 && !(isdefined(player.laststand) && player.laststand))
+        if (level.zm8_godmode_perk_ticks >= 4 && !(isdefined(player.laststand) && player.laststand))
         {
             level.zm8_godmode_perk_ticks = 0;
             level.perk_purchase_limit = 100;
@@ -1782,7 +2374,7 @@ function zm8_godmode_monitor()
             }
         }
 
-        wait 0.1;
+        wait 0.5;
     }
 }
 
@@ -2177,7 +2769,7 @@ function zm8_write_available_gums()
         return;
     }
 
-    sys::mkdir(0, "zm8");
+    mkdir("zm8");
 
     out = "# gobblegums usable on this map - write these names in gum_pack.txt\n";
     out += "# megas are marked and experimental\n";
@@ -2196,14 +2788,14 @@ function zm8_write_available_gums()
         out += "\n";
     }
 
-    sys::writefile(0, "zm8/available_gums.txt", out);
+    writefile("zm8/available_gums.txt", out);
 }
 
 function zm8_write_pack_template()
 {
-    sys::mkdir(0, "zm8");
+    mkdir("zm8");
 
-    if (sys::fileexists(0, "zm8/gum_pack.txt"))
+    if (fileexists("zm8/gum_pack.txt"))
     {
         return;
     }
@@ -2219,7 +2811,7 @@ function zm8_write_pack_template()
     t += "#in plain sight\n";
     t += "#stock option\n";
 
-    sys::writefile(0, "zm8/gum_pack.txt", t);
+    writefile("zm8/gum_pack.txt", t);
 }
 
 // Megas (consumables) need a per-gum tracking struct that _zm_bgb only builds
@@ -2351,12 +2943,12 @@ function zm8_friendly_gum_name(internal)
 
 function zm8_read_shared_pack()
 {
-    if (!sys::fileexists(0, "zm8/gum_pack.txt"))
+    if (!fileexists("zm8/gum_pack.txt"))
     {
         return undefined;
     }
 
-    content = sys::readfile(0, "zm8/gum_pack.txt");
+    content = readfile("zm8/gum_pack.txt");
 
     if (!isdefined(content) || content == "")
     {
@@ -2476,11 +3068,8 @@ function zm8_character_index_fixer()
 // Zombie counter, top left: zombies left to spawn this round + currently alive
 // IMPORTANT: hudelem setText() with a CHANGING string allocates a brand-new
 // engine configstring on every update (visible in console as endless
-// "Registering configstring index NNNN" lines). The table is finite, so a
-// long game exhausts it and the engine corrupts - this was the recurring
-// "crash after a while" (ScrVar_ReleaseValue access violations) in every
-// extended session. Numeric setValue() elems render without allocating any
-// strings; the two labels are set exactly once each.
+// "Registering configstring index NNNN" lines). That separate exhaustion bug
+// is avoided here with numeric setValue() elems; the labels are set once.
 function zm8_zombie_counter()
 {
     level endon("end_game");
@@ -2488,13 +3077,13 @@ function zm8_zombie_counter()
     label_spawning = zm8_counter_elem(10);
     label_spawning setText("Spawning:");
 
-    value_spawning = zm8_counter_elem(78);
+    value_spawning = zm8_counter_elem(72);
     value_spawning setValue(0);
 
-    label_alive = zm8_counter_elem(120);
+    label_alive = zm8_counter_elem(90);
     label_alive setText("Alive:");
 
-    value_alive = zm8_counter_elem(163);
+    value_alive = zm8_counter_elem(134);
     value_alive setValue(0);
 
     last_spawning = -1;
@@ -2582,7 +3171,7 @@ function zm8_origins_staff_sharing_init()
     level.zm8_origins_stock_persistent_weapon = level.zombie_craftable_persistent_weapon;
     level.custom_craftable_validation = &zm8_origins_shared_staff_validation;
     level.zombie_craftable_persistent_weapon = &zm8_origins_shared_staff_pickup;
-    sys::println(0, "zm8: Origins staff pedestals allow duplicate pickups");
+    println("zm8: Origins staff pedestals allow duplicate pickups");
 }
 
 function zm8_origins_is_staff_craftable(trigger)
@@ -3276,7 +3865,7 @@ function zm8_gk_nikolai_scaling_fixer()
             boss.var_4266e1d4 = zm8_gk_pad_scaling(boss.var_4266e1d4, 4, 8);
             boss.var_ea7d582d = zm8_gk_pad_scaling(boss.var_ea7d582d, 4, 8);
             patched = boss;
-            sys::println(0, "zm8: padded the nikolai boss scaling arrays for 5-8 players");
+            println("zm8: padded the nikolai boss scaling arrays for 5-8 players");
         }
 
         wait 0.05;
@@ -3317,7 +3906,7 @@ function zm8_gk_arena_struct_fixer()
     }
 
     level.struct_class_names["targetname"]["s_nikolai_debug_player"] = a_structs;
-    sys::println(0, "zm8: padded the boss arena teleport spots from " + base + " to 8");
+    println("zm8: padded the boss arena teleport spots from " + base + " to 8");
 }
 
 // The dragon transport links each boarder to tag_passenger<N> as they climb
@@ -3375,7 +3964,7 @@ function zm8_gk_koth_assist()
                 && isdefined(player.flag["ee_koth_terminal_used"]) && !player.flag["ee_koth_terminal_used"])
             {
                 player scripts\shared\flag_shared::set("ee_koth_terminal_used");
-                sys::println(0, "zm8: credited " + player.name + " (not in play) for the koth terminal step");
+                println("zm8: credited " + player.name + " (not in play) for the koth terminal step");
             }
         }
 
@@ -3875,7 +4464,7 @@ function zm8_soe_spawn_delay_fixer()
     }
 
     level.func_get_zombie_spawn_delay = &zm8_soe_get_zombie_spawn_delay;
-    sys::println(0, "zm8: replaced the zod spawn-delay formula (5-8 players use 4-player pacing)");
+    println("zm8: replaced the zod spawn-delay formula (5-8 players use 4-player pacing)");
 }
 
 // Faithful copy of zm_zod's function_59804866 with players.size clamped.

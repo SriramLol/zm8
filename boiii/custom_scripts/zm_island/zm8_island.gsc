@@ -22,7 +22,7 @@
 
 autoexec function zm8_island_helper_loaded()
 {
-    sys::println(0, "zm8: Zetsubou 5-8 player compatibility detours loaded");
+    println("zm8: Zetsubou 5-8 player compatibility detours loaded");
 }
 
 // The stock challenge pools contain 5/6/5 entries and remove an entry for

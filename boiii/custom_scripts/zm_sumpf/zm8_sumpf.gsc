@@ -14,7 +14,7 @@
 
 autoexec function zm8_sumpf_helper_loaded()
 {
-    sys::println(0, "zm8: Shi No Numa 5-8 player zipline compatibility loaded");
+    println("zm8: Shi No Numa 5-8 player zipline compatibility loaded");
 }
 
 detour scripts\zm\zm_sumpf_zipline::activatezip(rider)

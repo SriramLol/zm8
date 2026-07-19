@@ -16,7 +16,7 @@
 
 autoexec function zm8_cosmodrome_helper_loaded()
 {
-    sys::println(0, "zm8: Ascension 5-8 player lander compatibility loaded");
+    println("zm8: Ascension 5-8 player lander compatibility loaded");
 }
 
 detour scripts\zm\zm_cosmodrome_lander::lock_players(destination)

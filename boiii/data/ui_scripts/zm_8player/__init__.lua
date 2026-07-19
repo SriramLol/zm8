@@ -157,7 +157,18 @@ local function dbg(msg)
 end
 
 pcall(function()
-	dbg("ui script loaded, in-game=" .. tostring(Engine.IsInGame and Engine.IsInGame() or false))
+	local inGame = Engine.IsInGame and Engine.IsInGame() or false
+	dbg("ui script loaded, in-game=" .. tostring(inGame))
+
+	-- The file also loads in the frontend so it can raise the lobby cap. The
+	-- scoreboard does not exist there, and installing its recursive UI poller
+	-- in both contexts leaves a useless frontend timer alive during map load.
+	-- The client loads this file again with IsInGame() true after entering a
+	-- map, so defer all scoreboard work until that second load.
+	if not inGame then
+		dbg("scoreboard patch deferred until in-game load")
+		return
+	end
 
 	-- make sure the widget classes exist before we wrap them (both casings;
 	-- module names may be registered either way across client builds)
@@ -169,7 +180,9 @@ pcall(function()
 	dbg("after require: ListingLg=" .. tostring(CoD.ZMScr_ListingLg ~= nil)
 		.. " ListingSm=" .. tostring(CoD.ZMScr_ListingSm ~= nil))
 
-	guardListingWidget("ZMScr_ListingLg")
+	-- The large row is the local player's own points display. Do not wrap its
+	-- model callbacks broadly: swallowing one update can hide the host row.
+	-- The specific clients-4-7 color failure is handled below instead.
 	guardListingWidget("ZMScr_ListingSm")
 
 	-- ------------------------------------------------------------------
@@ -178,8 +191,10 @@ pcall(function()
 	-- Stock ZMScr hard-wires exactly three teammate rows (Listing2/3/4)
 	-- to ZMPlayerList indexes 1-3, stacked 26.12px apart going up, plus
 	-- the local player's big row. Players 5-8 simply have no widgets.
-	-- Add four more ZMScr_ListingSm rows bound to indexes 4-7, continuing
-	-- the ladder upward. The row widget hides itself (alpha 0) until its
+	-- Add four more ZMScr_ListingSm rows bound to indexes 4-7. ZMScr places
+	-- these injected children above its stock block, so their local offsets
+	-- start again at one row rather than using the absolute player slot.
+	-- The row widget hides itself (alpha 0) until its
 	-- slot's playerScoreShown model is nonzero, so the extra rows are
 	-- invisible in <=4 player games. Row callbacks go through the same
 	-- construction-time guard as the stock rows (installed above), so the
@@ -205,6 +220,9 @@ pcall(function()
 
 				for slot = 4, 7 do
 					local listing = CoD.ZMScr_ListingSm.new(menu, controller)
+					-- Stock teammate indexes 1-3 already occupy -26.12,
+					-- -52.24 and -78.36. Continue above them; the old
+					-- (slot - 3) formula overlaid and hid those real rows.
 					local top = 0 - 26.12 * (slot - 3)
 					listing:setLeftRight(true, false, 16.28, 101.28)
 					listing:setTopBottom(true, false, top, top + 35)
@@ -212,7 +230,7 @@ pcall(function()
 						pcall(function() listing:setModel(model, controller) end)
 					end)
 					self:addElement(listing)
-					self["Listing" .. (slot + 1)] = listing
+					self["ZM8Listing" .. (slot + 1)] = listing
 					table.insert(extras, listing)
 				end
 
@@ -276,13 +294,14 @@ pcall(function()
 		end
 
 		ZombieClientScoreboardColor = function(clientNum)
-			local c = ZM8_EXTRA_COLORS[clientNum]
+			local normalizedClientNum = tonumber(clientNum) or clientNum
+			local c = ZM8_EXTRA_COLORS[normalizedClientNum]
 
 			if c then
 				return c[1], c[2], c[3]
 			end
 
-			local ok, r, g, b = pcall(origColor, clientNum)
+			local ok, r, g, b = pcall(origColor, normalizedClientNum)
 
 			if ok and type(r) == "number" then
 				return r, g, b
@@ -292,13 +311,14 @@ pcall(function()
 		end
 
 		ZombieClientScoreboardGlowColor = function(clientNum)
-			local c = ZM8_EXTRA_COLORS[clientNum]
+			local normalizedClientNum = tonumber(clientNum) or clientNum
+			local c = ZM8_EXTRA_COLORS[normalizedClientNum]
 
 			if c then
 				return c[1] * 0.75, c[2] * 0.75, c[3] * 0.75
 			end
 
-			local ok, r, g, b = pcall(origGlow, clientNum)
+			local ok, r, g, b = pcall(origGlow, normalizedClientNum)
 
 			if ok and type(r) == "number" then
 				return r, g, b
@@ -392,7 +412,7 @@ pcall(function()
 					pcall(function() listing:setModel(model, controller) end)
 				end)
 				instance:addElement(listing)
-				instance["Listing" .. (slot + 1)] = listing
+				instance["ZM8Listing" .. (slot + 1)] = listing
 			end
 		end)
 
@@ -561,13 +581,12 @@ pcall(function()
 				return
 			end
 
-			local poller = LUI.UITimer.new(1000, "zm8_scoreguard_poll")
+			local poller = LUI.UITimer.new(2000, "zm8_scoreguard_poll")
 			root:addElement(poller)
 			root:registerEventHandler("zm8_scoreguard_poll", function(element, event)
 				attempts = attempts + 1
 
-				if CoD.ZMScr_ListingLg then
-					guardListingWidget("ZMScr_ListingLg")
+				if CoD.ZMScr_ListingSm then
 					guardListingWidget("ZMScr_ListingSm")
 				end
 
@@ -589,7 +608,10 @@ pcall(function()
 					end)
 				end
 
-				if (done and colorWrapsInstalled and tabPatched) or attempts > 300 then
+				-- Once the always-on HUD rows are present, future TAB scoreboards
+				-- are handled by the constructor wrapper; no permanent tree walk is
+				-- needed. Keep a short timeout for unusual HUD configurations.
+				if (done and colorWrapsInstalled) or attempts > 60 then
 					dbg("poller finished, attempts=" .. attempts .. " injected=" .. tostring(done)
 						.. " colors=" .. tostring(colorWrapsInstalled)
 						.. " tab=" .. tostring(tabPatched))

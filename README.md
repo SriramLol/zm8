@@ -1,6 +1,6 @@
 # zm8 — 8-Player Zombies for Black Ops III
 
-Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map — stock and DLC (Der Eisendrache, The Giant, Origins, ...). No mod menu, no workshop subscription. Built for the BOIII ("EZZ") client.
+Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map — stock and DLC (Der Eisendrache, The Giant, Origins, ...). No mod menu, no workshop subscription. Built for ezboiii/EZZ **v1.1.7 or newer**.
 
 **Only the host needs this mod.** Friends install nothing — they join through the server browser or direct connect.
 
@@ -16,6 +16,10 @@ Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map �
 ## How it works
 
 The 4-player limit in classic zombies is script-enforced, not an engine limit — `_zm.gsc` ends the game when a 5th player is detected, but allows 8 for Treyarch's own Grief mode, meaning the engine officially supports 8 zombies clients. This mod re-caps that check at 8 via the BOIII client's `detour` feature, fixes character assignment for slots 5–8, and swaps in GobbleGum packs for players the engine gives none (their loadout data only exists for 4 slots). Everything runs host-side in GSC; effects reach joiners through normal game networking.
+
+BO3's native pools remain fixed: **130,000 server ScrVars, 65,000 client ScrVars and 2,048 game entities**. GSC cannot enlarge them. Long-session 8-player stability remains under investigation; the stock 24-zombies-alive cap is unchanged.
+
+EZZ v1.1.7 restored its legacy custom-builtin dispatcher. zm8 uses the v1.1.7 unqualified builtin syntax and supplies an explicit empty filter to `getcommand("")`, avoiding the client's broken zero-real-argument path during map startup.
 
 ## Installation
 
@@ -78,7 +82,13 @@ Toggles reset to their defaults every new game.
 
 Map-specific commands carry a map prefix and no-op on other maps. More maps to come.
 
-Automatic compatibility fix: upgraded-bow pedestals remain reusable so players 5–8 can take duplicate upgraded bows. No command is required for this; each player may hold only one upgraded bow at a time.
+Automatic compatibility fixes:
+
+- Upgraded-bow pedestals remain reusable so players 5–8 can take duplicate upgraded bows. Each player may hold only one upgraded bow at a time.
+- All four elemental quests support independent **two-player bow teams**: two Lightning, two Fire, two Void and two Wolf players, covering all eight slots. The first player who legitimately starts a stock bow quest becomes its active runner. A second player joins at that bow's final soul box/altar in the main pyramid undercroft—the box where the reforged arrow is placed and the upgraded bow eventually appears. Both teammates can simultaneously contribute to the same stage: kills, souls, bow shots, Lightning plates/urns/bonfires, Fire runes, Void circles/golf shots, and Wolf escort/bone steps are credited to either teammate. A small personal HUD reads `ACTIVE`, `PARTNER` or `WAITING`. One player may join one bow team, with two players maximum per bow. This is a compatibility feature, not a quest-progress cheat.
+- The shared Lightning wall-plate step has no artificial timer. Each teammate enters the attempt when they hit their first plate; from then until the fifth shared plate, that participating player touching the ground resets the shared sequence exactly like stock. A teammate who has not hit a plate yet may wait on the ground.
+
+DE still has only one global coroutine, owner field, arrow and physical objective set per element. Consequently, teammates cannot run two independent copies of the same bow at different stages. One teammate remains the active stock owner for unique one-time actions—binding the broken arrow, reforging it, placing it and driving stock cleanup. Use that bow's pyramid soul box/altar again to hand this role to the partner without losing progress; ordinary stage contributions do not require a handoff.
 
 | Command | Effect |
 |---|---|
@@ -87,6 +97,8 @@ Automatic compatibility fix: upgraded-bow pedestals remain reusable so players 5
 | `zm8_de_eecomplete` | **Testing cheat:** skip the entire main quest straight to boss-ready and auto-press the pyramid canister. Skipped quest state may prevent the ending cinematic |
 | `zm8_de_bows [element]` | **Testing cheat:** give every living player an upgraded bow with full ammo. Element: `fire`, `void`, `storm` or `wolf`; no argument mixes all four |
 | `zm8_de_lightningready` | **Testing cheat:** fill all three dragons and drive the stock Lightning Bow quest until the upgraded bow appears on its altar |
+| `zm8_de_lightningstep` | **Testing cheat:** advance exactly one stock Lightning Bow stage per use. Use it to reach a desired stage, then have the two Lightning teammates split its remaining legitimate targets to verify shared contribution |
+| `zm8_de_botlightning` | **Testing cheat:** select the first alive bot, prepare the dragons/start Lightning if needed, transfer the live stock Lightning quest to that bot, and remove the host from its team. The host can then use the Lightning soul box/altar once to test joining as its partner |
 | `zm8_de_ragnarok` | **Testing cheat:** give every living player the Ragnarok DG-4 |
 
 ### Origins commands (`zm8_origins_*`)
@@ -213,7 +225,8 @@ Audited — **needs nothing**. Nacht has no map transport, quest, player-count b
 
 ## Known limitations
 
-- The left-edge points HUD is extended to 8 rows (players 5–8 stack above the stock rows and only appear while those slots are filled). Some per-player HUD data for slots 5–8 isn't registered by the engine, so their rows may render with gaps; the widget is guarded so this never throws a LUI error. The TAB scoreboard supports 18 rows stock
+- The left-edge points HUD is extended to 8 rows: players 5–8 continue above the three stock teammate rows without covering the local player's points. Missing clients-4–7 color dvars are supplied by the lobby Lua. The TAB scoreboard supports 18 rows stock
+- Long-session `ScrVar_ReleaseValue` access violations are native VM failures. The stability cap reduces the most likely 5–8-player pressure source but is a mitigation, not proof that every engine-side lifetime bug is eliminated
 - Players 5–8 reuse the map's 4 character models/voices
 - Splitscreen remains 2 players max (engine limit)
 - **Do not exceed 8 players** — beyond 8 the engine times everyone out

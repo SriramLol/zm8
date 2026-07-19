@@ -11,7 +11,7 @@
 
 autoexec function zm8_factory_helper_loaded()
 {
-    sys::println(0, "zm8: The Giant 5-8 player teleporter compatibility loaded");
+    println("zm8: The Giant 5-8 player teleporter compatibility loaded");
 }
 
 function zm8_factory_extra_offset(index, angles)

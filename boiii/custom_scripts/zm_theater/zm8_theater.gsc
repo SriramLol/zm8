@@ -14,7 +14,7 @@
 
 autoexec function zm8_theater_helper_loaded()
 {
-    sys::println(0, "zm8: Kino 5-8 player teleporter compatibility loaded");
+    println("zm8: Kino 5-8 player teleporter compatibility loaded");
 }
 
 function zm8_theater_extra_offset(player_index, angles)

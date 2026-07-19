@@ -4,8 +4,8 @@
 
 Play Call of Duty: Black Ops III zombies with up to 8 players on
 EVERY map - stock and DLC (Der Eisendrache, The Giant, Origins...).
-No mod menu, no workshop subscription. Works on the BOIII ("EZZ")
-client.
+No mod menu, no workshop subscription. Works on ezboiii/EZZ v1.1.7
+or newer.
 
 FEATURES
 --------
@@ -22,6 +22,15 @@ FEATURES
 IMPORTANT: ONLY THE HOST NEEDS THIS MOD.
 Friends joining your game install nothing - they just need the same
 BOIII client and join via the server browser or direct connect.
+
+ENGINE STABILITY NOTE: BO3's native pools are fixed at 130,000 server
+ScrVars, 65,000 client ScrVars and 2,048 game entities. GSC cannot
+enlarge them. Long-session 8-player stability remains under investigation;
+the stock 24-zombies-alive limit is unchanged.
+
+EZZ v1.1.7 NOTE: zm8 uses the restored unqualified custom-builtin syntax.
+Its command poll calls getcommand("") with an explicit empty filter to avoid
+the client's broken zero-real-argument dispatcher path during map startup.
 
 
 INSTALLATION
@@ -133,6 +142,7 @@ setup commands are cheats. Most 5-8 player fixes run automatically.
                     give the host any GobbleGum instantly,
                     e.g. zm8_gum shopping free. Names as in
                     zm8/available_gums.txt.
+
 Toggles reset to these defaults every new game. Turning allperks off
 mid-game keeps perks people already have; they lose them normally on
 downs.
@@ -142,6 +152,30 @@ DER EISENDRACHE COMMANDS (zm8_de_*)
 Map-specific commands carry a map prefix and no-op on other maps.
 Upgraded-bow pedestals automatically stay reusable for players 5-8;
 no command is required for duplicate bow pickups.
+
+All four elemental quests support TWO-PLAYER BOW TEAMS: two Lightning,
+two Fire, two Void and two Wolf players, covering all eight slots. The
+first player who legitimately starts a bow quest becomes its active
+runner. A second player joins at that bow's final soul box/altar in the
+main pyramid undercroft: the box where the reforged arrow is placed and
+the upgraded bow eventually appears. Both
+players can simultaneously contribute kills, souls, shots, plates,
+urns, bonfires, Fire runes, Void circles/golf shots and Wolf escort/bone
+steps. A personal HUD shows ACTIVE, PARTNER or WAITING. One player can
+join one team; each bow allows two players.
+
+The shared Lightning wall plates have NO artificial timer. Each teammate
+enters the attempt when they hit their first plate. From then until the
+fifth shared plate, that participating player touching the ground resets
+the whole shared sequence like stock. A teammate who has not hit a plate
+yet may wait on the ground.
+
+The map still has only one stock quest coroutine, owner, arrow and prop
+set per bow. Two teammates therefore cannot be on separate steps of the
+same bow simultaneously. The active runner remains authoritative only
+for unique one-time broken-arrow, reforge, placement and cleanup actions.
+Use the pyramid soul box/altar again to hand that role to the partner without
+losing progress; ordinary shared-stage contributions need no handoff.
 
 [COMPATIBILITY] zm8_de_bossfight
                     release the final boss-pad gate. The stock
@@ -168,6 +202,17 @@ no command is required for duplicate bow pickups.
 [TESTING CHEAT] zm8_de_lightningready
                     fill all 3 dragons and drive the stock Lightning
                     Bow quest until the upgrade is on its altar.
+[TESTING CHEAT] zm8_de_lightningstep
+                    advance exactly one stock Lightning Bow stage per
+                    use. Use it to reach the desired test stage, then
+                    split the remaining legitimate targets between the
+                    two Lightning teammates to test shared credit.
+[TESTING CHEAT] zm8_de_botlightning
+                    select the first alive bot; prepare the dragons and
+                    start Lightning if needed; transfer the live stock
+                    quest to that bot; remove the host from its team.
+                    The host can then use the Lightning soul box/altar
+                    once to test joining as the bot's partner.
 [TESTING CHEAT] zm8_de_ragnarok
                     give every living player the Ragnarok
                     DG-4 (needed for the boss pads).
@@ -398,11 +443,13 @@ there are no zm8_prototype_* commands.
 
 KNOWN LIMITATIONS
 -----------------
-- The left-edge points HUD is extended to 8 rows (players 5-8 stack
-  above the stock rows, appearing only while those slots are filled).
-  Some per-player HUD data for slots 5-8 is not registered by the
-  engine, so their rows may render with gaps; the widget is guarded
-  so this never throws a LUI error. TAB scoreboard is 18 rows stock.
+- The left-edge points HUD is extended to 8 rows. Players 5-8 continue
+  above the stock teammate rows without covering the local player's
+  points. Missing clients-4-7 color dvars are supplied by the Lua.
+  TAB scoreboard is 18 rows stock.
+- Long-session ScrVar_ReleaseValue access violations are native VM
+  failures. The stability cap reduces the most likely 5-8-player
+  pressure source, but cannot prove every engine lifetime bug is gone.
 - Players 5-8 reuse the map's 4 character models/voices (duplicates).
 - Splitscreen is still 2 players max (engine limit).
 - More than 8 total players is NOT supported - the engine tolerates

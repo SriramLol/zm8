@@ -20,7 +20,7 @@
 
 autoexec function zm8_temple_helper_loaded()
 {
-    sys::println(0, "zm8: Shangri-La 5-8 player compatibility detour loaded");
+    println("zm8: Shangri-La 5-8 player compatibility detour loaded");
 }
 
 // the stock script's power() helper is file-local flavored; keep our own
