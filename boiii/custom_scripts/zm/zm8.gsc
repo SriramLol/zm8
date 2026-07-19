@@ -8,12 +8,59 @@
 // Its direct-VM builtin handlers still reserve argument 0 for the removed
 // dispatcher hash, so pass a compatibility dummy before the real arguments.
 
-detour scripts\zm\_zm::player_too_many_players_check()
+// The stock _zm.gsc ends the game when getplayers().size > 4 (8 for grief).
+// IMPORTANT: the game does NOT call player_too_many_players_check() directly
+// - _zm init stores &player_too_many_players_check into the level variable
+// level.player_too_many_players_check_func, and onplayerspawned() invokes it
+// via [[ level.player_too_many_players_check_func ]](). A `detour` only
+// redirects direct namespace calls; a `&func` pointer captured into a
+// variable still points at the ORIGINAL body, so a detour here is dead and
+// the stock 4-player gate still fires (game ends the instant a 5th client
+// spawns). The real fix is to REPLACE that function pointer - see
+// zm8_init(). This standalone version is what the pointer is swapped to.
+function zm8_too_many_players_check()
 {
     if (getplayers().size > 8)
     {
         zm8_announce("^1zm8: more than 8 players - ending game");
+        zm8_freeze_players_safe();
         level notify("end_game");
+    }
+}
+
+// mirror the stock freeze so a legitimate >8 end still looks stock
+function zm8_freeze_players_safe()
+{
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (isdefined(players[i]))
+        {
+            players[i] freezecontrols(1);
+        }
+    }
+}
+
+// Belt and braces: the pointer swap in zm8_init handles the per-spawn check,
+// but this independent poll guarantees the 8-cap even if a spawn somehow
+// fired the stock check before the swap landed. Only ends the game above 8 -
+// the whole point is that 5-8 is allowed.
+function zm8_player_cap_monitor()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        if (getplayers().size > 8)
+        {
+            zm8_announce("^1zm8: more than 8 players - ending game");
+            zm8_freeze_players_safe();
+            level notify("end_game");
+            return;
+        }
+
+        wait 1;
     }
 }
 
@@ -40,6 +87,18 @@ autoexec function zm8_init()
     {
         wait 0.5;
     }
+
+    // THE 8-PLAYER CAP. Replace the level function pointer the game actually
+    // invokes (onplayerspawned -> [[ level.player_too_many_players_check_func
+    // ]]()) with our >8 version. Must happen before a 5th client spawns; the
+    // host (player 1) is already in and bots/joiners come later, so setting it
+    // here - the first thing after the game is live - wins the race. Both the
+    // pointer and the enable-flag are set so the check keeps running, now
+    // capped at 8 instead of 4. (A `detour` cannot do this - the pointer was
+    // captured as &player_too_many_players_check during _zm init.)
+    level.player_too_many_players_check_func = &zm8_too_many_players_check;
+    level.player_too_many_players_check = 1;
+    level thread zm8_player_cap_monitor();
 
     // Register after the listen server has entered the game. ezboiii 1.1.6's
     // generated addcommand callback bridge only recognizes unqualified calls,
