@@ -22,6 +22,7 @@ The 4-player limit in classic zombies is script-enforced, not an engine limit �
 2. Copy the contents of this repo (or the release zip) into it, keeping the folder structure:
    ```
    <BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
    <BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
    <BO3 folder>\launch-zm8.bat
    <BO3 folder>\zm8-gum-picker.bat
@@ -128,6 +129,19 @@ Shadows of Evil has no manual command classified as a strict 5–8-player compat
 | `zm8_soe_swords [1\|2]` | **Testing cheat:** give every living player their character's Apothicon sword (`1` = base, `2` = upgraded, default upgraded) |
 | `zm8_soe_servant` | **Testing cheat:** give every living player the upgraded Apothicon Servant (variant matches their character) |
 
+### Zetsubou No Shima automatic fixes (`zm_island`)
+
+Zetsubou contains several stock arrays and physical slots sized only for 1–4 players. zm8 fixes all of these **automatically**:
+
+- **Challenge assignment:** the three challenge pools run out after 5/6/5 assignments. Players 5–8 may receive repeated challenges after a pool is exhausted and use their modulo-4 physical challenge board while keeping independent progress.
+- **Pack-a-Punch valve defense:** its enemy-limit table ends at four players. Teams of 5–8 use the stock four-player limit.
+- **Four Skull of Nan Sapwe rituals:** their zombie, spider and Thrasher balance tables end at four players. Teams of 5–8 use four-player pacing.
+- **Final Skull room:** both enemy-balance tables end at four players. Teams of 5–8 use four-player pacing.
+- **Takeo boss waves:** the boss arena's three wave tables end at four players. Teams of 5–8 use four-player pacing.
+- **Boss rescue teleport:** stock has only four landing destinations. Players 5–8 receive nearby offset destinations instead of overlapping their character twins.
+
+These are strictly **5–8-player compatibility fixes**, not cheats: they prevent undefined array reads and slot collisions while leaving the generators, challenges, Skull quest, main Easter egg and boss fight to be completed normally. Zetsubou currently adds no console commands or quest skips.
+
 ### Moon commands (`zm8_moon_*`)
 
 Best audit result of any map: **Moon has no 5–8-player compatibility gates at all.** The Area 51 teleporter counts only alive non-spectators on both legs, the Richtofen easter egg is proximity/interaction driven, and there are no per-player-count scaling tables. Nothing is fixed because nothing breaks — every Moon command is a testing cheat.
@@ -138,6 +152,18 @@ Cosmetic quirks with 5–8 (documented, not fixed): the Pack-a-Punch zombie-dist
 |---|---|
 | `zm8_moon_wavegun` | **Testing cheat:** give every living player the upgraded Zap Guns / Wave Gun with full ammo |
 | `zm8_moon_qed` | **Testing cheat:** give every living player QEDs (quantum entanglement devices) |
+
+### Revelations commands (`zm8_rev_*`)
+
+**Revelations has no 5–8-player compatibility gates.** The boss-arena rift gate counts only *active* players (spectator-safe), the arena teleports share their 4 landing spots across any number of players, and there are no per-player-count scaling tables. Every Revelations command is a testing cheat.
+
+One thing to know with 5–8 (documented, no fix needed): the rift into the boss arena opens when every **living** player stands within a small radius of the rune portal at once — stack tightly on it.
+
+| Command | Effect |
+|---|---|
+| `zm8_rev_eecomplete` | **Testing cheat:** force the main quest flags through Kronorium placement (character stones, shards, audio reels, toys, book). The keeper rune trial and the stack-on-the-portal rift entry remain manual |
+| `zm8_rev_thundergun` | **Testing cheat:** give every living player the upgraded Thundergun with full ammo |
+| `zm8_rev_servant` | **Testing cheat:** give every living player the upgraded Apothicon Servant |
 
 ## Known limitations
 

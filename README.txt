@@ -30,6 +30,7 @@ INSTALLATION
    folder structure. Merge folders if asked. You should end up with:
 
       <your BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
       <your BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
       <your BO3 folder>\launch-zm8.bat
       <your BO3 folder>\zm8-gum-picker.bat
@@ -249,6 +250,25 @@ automatic and require no manual compatibility command.
                     give every living player the upgraded
                     Apothicon Servant (variant matches character).
 
+ZETSUBOU NO SHIMA AUTOMATIC FIXES (zm_island)
+---------------------------------------------
+Zetsubou has several stock arrays and physical slots sized only for
+1-4 players. zm8 fixes all of these automatically:
+- Challenge assignment: the three pools run out after 5/6/5
+  assignments. Players 5-8 may repeat challenges after exhaustion
+  and share their modulo-4 physical board, but keep separate progress.
+- Pack-a-Punch valve defense: 5-8 use the 4-player enemy limit.
+- All four Skull rituals: 5-8 use 4-player zombie/spider/Thrasher
+  pacing instead of reading past the stock balance arrays.
+- Final Skull room: 5-8 use 4-player enemy pacing.
+- Takeo boss waves: 5-8 use 4-player wave pacing.
+- Boss rescue teleport: players 5-8 get nearby offset destinations
+  instead of overlapping their character twins.
+These are strictly 5-8 PLAYER COMPATIBILITY FIXES, not cheats. The
+generators, challenges, Skull quest, main easter egg and boss fight
+still must be completed normally. Zetsubou currently adds no console
+commands or quest skips.
+
 MOON COMMANDS (zm8_moon_*)
 --------------------------
 Best audit result of any map: Moon has NO 5-8 player compatibility
@@ -267,6 +287,27 @@ system is map-wired) - grab it in the labs normally.
                     Wave Gun with full ammo.
 [TESTING CHEAT] zm8_moon_qed
                     give every living player QEDs.
+
+REVELATIONS COMMANDS (zm8_rev_*)
+--------------------------------
+Revelations has NO 5-8 player compatibility gates. The boss-arena
+rift gate counts only ACTIVE players (spectator-safe), the arena
+teleports share their 4 landing spots, and there are no per-player-
+count scaling tables. Every Revelations command is a testing cheat.
+Note with 5-8: the rift into the boss arena opens when every LIVING
+player stands within a small radius of the rune portal at once -
+stack tightly on it.
+
+[TESTING CHEAT] zm8_rev_eecomplete
+                    force the main quest flags through Kronorium
+                    placement (stones, shards, reels, toys, book).
+                    The keeper rune trial and the rift entry stay
+                    manual.
+[TESTING CHEAT] zm8_rev_thundergun
+                    give every living player the upgraded Thundergun.
+[TESTING CHEAT] zm8_rev_servant
+                    give every living player the upgraded Apothicon
+                    Servant.
 
 
 KNOWN LIMITATIONS

@@ -176,6 +176,20 @@ function zm8_powerup_pool_fixer()
 // Map-specific commands use a zm8_<map>_ prefix and live in their own
 // section further down; add future maps the same way.
 //
+// Revelations (zm_genesis) - guarded by mapname, no-ops elsewhere:
+//   zm8_rev_eecomplete    - TESTING CHEAT: force the main quest flags
+//                           through book placement; rune trial and rift
+//                           entry stay manual
+//   zm8_rev_thundergun    - TESTING CHEAT: give everyone the upgraded
+//                           Thundergun
+//   zm8_rev_servant       - TESTING CHEAT: give everyone the upgraded
+//                           Apothicon Servant
+// Audit result: Revelations has NO 5-8 player compatibility gates - the
+// boss-arena rift gate counts only ACTIVE players (spectator-safe) and the
+// 4 arena teleport landing structs are shared, not indexed per player.
+// Note for 5-8: the rift opens when every living player stands within 84
+// units of the rune portal - everyone must stack tightly on it.
+//
 // Moon (zm_moon) - guarded by mapname, no-ops elsewhere:
 //   zm8_moon_wavegun      - TESTING CHEAT: give everyone the upgraded Wave
 //                           Gun / Zap Guns
@@ -223,6 +237,11 @@ function zm8_register_commands()
     // Moon
     sys::addcommand(0, "zm8_moon_wavegun");
     sys::addcommand(0, "zm8_moon_qed");
+
+    // Revelations
+    sys::addcommand(0, "zm8_rev_eecomplete");
+    sys::addcommand(0, "zm8_rev_thundergun");
+    sys::addcommand(0, "zm8_rev_servant");
 
     level thread zm8_command_dispatch_loop();
 }
@@ -365,6 +384,18 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_moon_qed")
         {
             zm8_moon_cmd_qed(args);
+        }
+        else if (command_name == "zm8_rev_eecomplete")
+        {
+            zm8_rev_cmd_eecomplete(args);
+        }
+        else if (command_name == "zm8_rev_thundergun")
+        {
+            zm8_rev_cmd_thundergun(args);
+        }
+        else if (command_name == "zm8_rev_servant")
+        {
+            zm8_rev_cmd_servant(args);
         }
     }
 }
@@ -3762,4 +3793,167 @@ function zm8_moon_cmd_qed(args)
     }
 
     zm8_announce("^2zm8: gave QEDs to " + count + " player(s)");
+}
+
+// ========================== Revelations (zm8_rev_*) ==========================
+// Audit result (decompile audit of ate47/bo3-source zm_genesis scripts):
+// Revelations has NO 5-8 player compatibility gates. The boss-arena rift
+// gate counts only ACTIVE players within 84 units of the rune portal
+// (spectators excluded), the arena entry/exit teleports share their 4
+// landing structs across however many players there are, zombie counts use
+// the shared systems (no per-player-count tables), and character assignment
+// falls back to index 0. The "all players completed their challenges"
+// counter exists here but nothing on THIS map reads it (Zetsubou reads it).
+// Everything below is therefore a TESTING CHEAT, not a compatibility fix.
+//
+// 5-8 player note (documented, no fix needed): to open the rift into the
+// boss arena, every LIVING player must stand within 84 units of the rune
+// portal at once - stack tightly on it.
+
+// TESTING CHEAT: force the main quest flags through book placement. The
+// flag handlers chain the sequence themselves (Sophia steps, shards, audio
+// reels, toys, Kronorium pickup/placement). The keeper rune trial and the
+// stack-on-the-portal rift entry remain manual.
+function zm8_rev_cmd_eecomplete(args)
+{
+    if (getdvarstring("mapname") != "zm_genesis")
+    {
+        zm8_announce("^1zm8: zm8_rev_eecomplete only works on Revelations");
+        return;
+    }
+
+    if (!isdefined(level.flag) || !isdefined(level.flag["book_placed"]))
+    {
+        zm8_announce("^1zm8: quest system not initialized on this map");
+        return;
+    }
+
+    if (level.flag["book_placed"])
+    {
+        zm8_announce("^3zm8: quest is already at the rune trial or beyond");
+        return;
+    }
+
+    zm8_announce("^2zm8: TEST - forcing the main quest through book placement");
+    level thread zm8_rev_eecomplete_run();
+}
+
+function zm8_rev_eecomplete_run()
+{
+    level endon("end_game");
+
+    steps = [];
+    steps[0] = "character_stones_done";
+    steps[1] = "shards_done";
+    steps[2] = "b_targets_collected";
+    steps[3] = "toys_collected";
+    steps[4] = "book_picked_up";
+    steps[5] = "book_placed";
+
+    for (i = 0; i < steps.size; i++)
+    {
+        if (isdefined(level.flag) && isdefined(level.flag[steps[i]]) && level.flag[steps[i]])
+        {
+            continue;
+        }
+
+        level scripts\shared\flag_shared::set(steps[i]);
+        zm8_announce("^2zm8: forced quest flag '" + steps[i] + "'");
+        wait 2;
+    }
+
+    zm8_announce("^3zm8: collect the 4 keeper runes, then everyone stacks on the rune portal to enter the arena");
+}
+
+// TESTING CHEAT: give every living player the upgraded Thundergun.
+function zm8_rev_cmd_thundergun(args)
+{
+    if (getdvarstring("mapname") != "zm_genesis")
+    {
+        zm8_announce("^1zm8: zm8_rev_thundergun only works on Revelations");
+        return;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        player zm8_rev_give_primary("thundergun", "thundergun_upgraded");
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave the upgraded Thundergun to " + count + " player(s)");
+}
+
+// TESTING CHEAT: give every living player the upgraded Apothicon Servant
+// (Revelations uses its own idgun_genesis variant).
+function zm8_rev_cmd_servant(args)
+{
+    if (getdvarstring("mapname") != "zm_genesis")
+    {
+        zm8_announce("^1zm8: zm8_rev_servant only works on Revelations");
+        return;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        player zm8_rev_give_primary("idgun_genesis_0", "idgun_genesis_0_upgraded");
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave the upgraded Apothicon Servant to " + count + " player(s)");
+}
+
+// Same crash-safe slot handling as the other maps' give helpers: refill if
+// already held, take the base variant on upgrade, never take a non-primary.
+function zm8_rev_give_primary(base_name, upgraded_name)
+{
+    w_new = getweapon(upgraded_name);
+
+    if (self hasweapon(w_new))
+    {
+        self setweaponammostock(w_new, w_new.maxammo);
+        self setweaponammoclip(w_new, w_new.clipsize);
+        return;
+    }
+
+    w_base = getweapon(base_name);
+
+    if (self hasweapon(w_base))
+    {
+        self scripts\zm\_zm_weapons::weapon_take(w_base);
+    }
+    else
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self zm8_take_primary_for_slot();
+        }
+    }
+
+    self scripts\zm\_zm_weapons::weapon_give(w_new, 0, 0, 1);
+    self setweaponammostock(w_new, w_new.maxammo);
+    self setweaponammoclip(w_new, w_new.clipsize);
+    self switchtoweapon(w_new);
 }
