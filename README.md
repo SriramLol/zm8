@@ -213,7 +213,7 @@ Audited — **needs nothing**. Nacht has no map transport, quest, player-count b
 
 ## Known limitations
 
-- Scoreboard/HUD is built for 4 players; rows for players 5–8 may not fully render, but the mod guards the zombies scoreboard widget so this no longer throws a LUI error screen (gameplay unaffected)
+- The left-edge points HUD is extended to 8 rows (players 5–8 stack above the stock rows and only appear while those slots are filled). Some per-player HUD data for slots 5–8 isn't registered by the engine, so their rows may render with gaps; the widget is guarded so this never throws a LUI error. The TAB scoreboard supports 18 rows stock
 - Players 5–8 reuse the map's 4 character models/voices
 - Splitscreen remains 2 players max (engine limit)
 - **Do not exceed 8 players** — beyond 8 the engine times everyone out

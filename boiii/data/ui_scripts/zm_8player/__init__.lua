@@ -163,6 +163,75 @@ pcall(function()
 	guardListingWidget("ZMScr_ListingLg")
 	guardListingWidget("ZMScr_ListingSm")
 
+	-- ------------------------------------------------------------------
+	-- 8-row points HUD (the always-on portraits/points list, left edge)
+	--
+	-- Stock ZMScr hard-wires exactly three teammate rows (Listing2/3/4)
+	-- to ZMPlayerList indexes 1-3, stacked 26.12px apart going up, plus
+	-- the local player's big row. Players 5-8 simply have no widgets.
+	-- Add four more ZMScr_ListingSm rows bound to indexes 4-7, continuing
+	-- the ladder upward. The row widget hides itself (alpha 0) until its
+	-- slot's playerScoreShown model is nonzero, so the extra rows are
+	-- invisible in <=4 player games. Row callbacks go through the same
+	-- construction-time guard as the stock rows (installed above), so the
+	-- slot-5-8 model gaps cannot throw.
+	local function addExtraScoreRows()
+		local scr = CoD.ZMScr
+
+		if not scr or type(scr.new) ~= "function" or scr.zm8_extra_rows then
+			return
+		end
+
+		local origNew = scr.new
+
+		local newWithExtraRows = function(menu, controller, ...)
+			local self = origNew(menu, controller, ...)
+
+			pcall(function()
+				if not self or not CoD.ZMScr_ListingSm then
+					return
+				end
+
+				local extras = {}
+
+				for slot = 4, 7 do
+					local listing = CoD.ZMScr_ListingSm.new(menu, controller)
+					local top = 0 - 26.12 * (slot - 3)
+					listing:setLeftRight(true, false, 16.28, 101.28)
+					listing:setTopBottom(true, false, top, top + 35)
+					listing:subscribeToGlobalModel(controller, "ZMPlayerList", tostring(slot), function(model)
+						pcall(function() listing:setModel(model, controller) end)
+					end)
+					self:addElement(listing)
+					self["Listing" .. (slot + 1)] = listing
+					table.insert(extras, listing)
+				end
+
+				-- stock close() only closes the stock children
+				pcall(function()
+					LUI.OverrideFunction_CallOriginalSecond(self, "close", function(element)
+						for i = 1, #extras do
+							pcall(function() extras[i]:close() end)
+						end
+					end)
+				end)
+			end)
+
+			return self
+		end
+
+		if not pcall(function() scr.new = newWithExtraRows end) then
+			pcall(function() rawset(scr, "new", newWithExtraRows) end)
+		end
+
+		pcall(function() scr.zm8_extra_rows = true end)
+		pcall(function() rawset(scr, "zm8_extra_rows", true) end)
+	end
+
+	pcall(function() require("ui.uieditor.widgets.HUD.ZM_Score.ZMScr") end)
+	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr") end)
+	pcall(addExtraScoreRows)
+
 	-- if the classes still are not defined in this UI VM yet, retry once the
 	-- scoreboard menu actually opens: hook the menu factory table lazily via
 	-- a metatable-free poll driven by LUI's own timer if available
@@ -185,7 +254,11 @@ pcall(function()
 					guardListingWidget("ZMScr_ListingSm")
 				end
 
-				if CoD.ZMScr_ListingLg or attempts > 120 then
+				if CoD.ZMScr then
+					pcall(addExtraScoreRows)
+				end
+
+				if (CoD.ZMScr_ListingLg and CoD.ZMScr) or attempts > 120 then
 					poller:close()
 				end
 			end)

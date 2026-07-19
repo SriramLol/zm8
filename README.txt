@@ -398,9 +398,11 @@ there are no zm8_prototype_* commands.
 
 KNOWN LIMITATIONS
 -----------------
-- Scoreboard/HUD is built for 4 players; rows for players 5-8 may
-  not fully render, but the mod guards the zombies scoreboard widget
-  so this no longer throws a LUI error screen. Gameplay unaffected.
+- The left-edge points HUD is extended to 8 rows (players 5-8 stack
+  above the stock rows, appearing only while those slots are filled).
+  Some per-player HUD data for slots 5-8 is not registered by the
+  engine, so their rows may render with gaps; the widget is guarded
+  so this never throws a LUI error. TAB scoreboard is 18 rows stock.
 - Players 5-8 reuse the map's 4 character models/voices (duplicates).
 - Splitscreen is still 2 players max (engine limit).
 - More than 8 total players is NOT supported - the engine tolerates
