@@ -4,6 +4,9 @@
 // Stock scripts\zm\_zm.gsc ends the game when GetPlayers().size > 4 in classic
 // modes (8 allowed for grief). The engine supports 8 zm clients, so re-cap the
 // check at 8 instead of removing it.
+// ezboiii 1.1.6 custom builtins are explicitly imported from the sys namespace.
+// Its direct-VM builtin handlers still reserve argument 0 for the removed
+// dispatcher hash, so pass a compatibility dummy before the real arguments.
 
 detour scripts\zm\_zm::player_too_many_players_check()
 {
@@ -19,7 +22,7 @@ detour scripts\zm\_zm::player_too_many_players_check()
 function zm8_announce(msg)
 {
     iprintlnbold(msg);
-    println(msg);
+    sys::println(0, msg);
 }
 
 autoexec function zm8_init()
@@ -38,6 +41,11 @@ autoexec function zm8_init()
         wait 0.5;
     }
 
+    // Register after the listen server has entered the game. ezboiii 1.1.6's
+    // generated addcommand callback bridge only recognizes unqualified calls,
+    // which cannot be used because of its custom-builtin import regression.
+    zm8_register_commands();
+
     // let the intro blackscreen pass so the print is visible
     wait 6;
     zm8_announce("^2zm8 mod loaded - 8 player cap, mid-round auto-spawn on");
@@ -52,6 +60,7 @@ autoexec function zm8_init()
     level thread zm8_powerup_pool_fixer();
     level thread zm8_autospawn_monitor();
     level thread zm8_zombie_counter();
+    level thread zm8_gk_init();
 }
 
 // carpenter powerups reportedly crash modded 8-player games - keep them out
@@ -89,7 +98,7 @@ function zm8_powerup_pool_fixer()
                     level.zombie_powerup_index = 0;
                 }
 
-                println("zm8: removed carpenter from the powerup pool");
+                sys::println(0, "zm8: removed carpenter from the powerup pool");
             }
         }
 
@@ -113,34 +122,180 @@ function zm8_powerup_pool_fixer()
 //   zm8_de_ragnarok       - cheat: give everyone the Ragnarok DG-4
 //
 // Origins (zm_tomb) - guarded by mapname, no-ops elsewhere:
+//   zm8_origins_generators - activate and power all six generators
+//   zm8_origins_eecomplete - activate generators and satisfy every main-
+//                           quest gate through the final portal step
 //   zm8_origins_eenext    - TEST cheat: force-complete the current main
-//                           quest step (at step_0 it skips the staffs-
-//                           crafted gate; generators must still be on)
+//                           quest step (at step_0 it skips the staffs gate)
 //   zm8_origins_punch     - cheat: give everyone the upgraded One-Inch
 //                           Punch; also satisfies the step-6 gate that
 //                           needs EVERY connected player upgraded
 //   zm8_origins_staffs [element] - cheat: give everyone an upgraded staff
 //                           (fire/ice/wind/lightning; no arg = mix)
 //
+// Gorod Krovi (zm_stalingrad) - guarded by mapname, no-ops elsewhere:
+//   zm8_gk_eecomplete     - TEST cheat: force the pre-boss quest flags in
+//                           order (cylinder/valves/generator/keys/lockdown/
+//                           console/cores); then Sophia leaves and everyone
+//                           rides the sewer into the arena
+//   zm8_gk_arena          - unstick the boss-arena entry gate (it counts
+//                           ALL connected players; use once everyone who
+//                           can ride in has done so)
+//   zm8_gk_koth           - credit every player for the network-console
+//                           (KOTH) defense step
+//   zm8_gk_weapons [kind] - cheat: give everyone a wonder weapon
+//                           (fire = GKZ-45 Mk3, strike = Dragon Strike,
+//                           gauntlet, shield; no arg = fire)
+//   zm8_gk_gauntlet       - skip the Gauntlet of Siegfried quest and give it
+// Passive 5-8 fixers on this map (no command): the dragon ride departs as
+// full at 4 riders (only 4 passenger tags exist), boss-fight zombie scaling
+// arrays and the arena teleport spots are padded to 8 players, and
+// spectators are auto-credited on the all-players EE gates.
+//
 // Map-specific commands use a zm8_<map>_ prefix and live in their own
 // section further down; add future maps (soe, moon, ...) the same way.
-autoexec function zm8_register_commands()
+function zm8_register_commands()
 {
-    addcommand("zm8_allperks", &zm8_cmd_allperks);
-    addcommand("zm8_spawn", &zm8_cmd_spawn);
-    addcommand("zm8_autospawn", &zm8_cmd_autospawn);
-    addcommand("zm8_gum", &zm8_cmd_gum);
+    sys::addcommand(0, "zm8_allperks");
+    sys::addcommand(0, "zm8_spawn");
+    sys::addcommand(0, "zm8_autospawn");
+    sys::addcommand(0, "zm8_gum");
 
     // Der Eisendrache
-    addcommand("zm8_de_eecomplete", &zm8_de_cmd_eecomplete);
-    addcommand("zm8_de_bossfight", &zm8_de_cmd_bossfight);
-    addcommand("zm8_de_bows", &zm8_de_cmd_bows);
-    addcommand("zm8_de_ragnarok", &zm8_de_cmd_ragnarok);
+    sys::addcommand(0, "zm8_de_eecomplete");
+    sys::addcommand(0, "zm8_de_bossfight");
+    sys::addcommand(0, "zm8_de_bows");
+    sys::addcommand(0, "zm8_de_ragnarok");
 
     // Origins
-    addcommand("zm8_origins_eenext", &zm8_origins_cmd_eenext);
-    addcommand("zm8_origins_punch", &zm8_origins_cmd_punch);
-    addcommand("zm8_origins_staffs", &zm8_origins_cmd_staffs);
+    sys::addcommand(0, "zm8_origins_generators");
+    sys::addcommand(0, "zm8_origins_eecomplete");
+    sys::addcommand(0, "zm8_origins_eenext");
+    sys::addcommand(0, "zm8_origins_punch");
+    sys::addcommand(0, "zm8_origins_staffs");
+
+    // Gorod Krovi
+    sys::addcommand(0, "zm8_gk_eecomplete");
+    sys::addcommand(0, "zm8_gk_arena");
+    sys::addcommand(0, "zm8_gk_koth");
+    sys::addcommand(0, "zm8_gk_weapons");
+    sys::addcommand(0, "zm8_gk_gauntlet");
+
+    level thread zm8_command_dispatch_loop();
+}
+
+function zm8_command_args(command_line)
+{
+    tokens = strtok(command_line, " ");
+    args = [];
+
+    for (i = 1; i < tokens.size; i++)
+    {
+        args[args.size] = tokens[i];
+    }
+
+    return args;
+}
+
+function zm8_command_dispatch_loop()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        // Zero arguments selects the next queued command, so no compatibility
+        // dummy is needed here. Poll once rather than once per registered name.
+        command_line = sys::getcommand();
+
+        if (!isdefined(command_line) || command_line == "")
+        {
+            wait 0.05;
+            continue;
+        }
+
+        tokens = strtok(command_line, " ");
+
+        if (!isdefined(tokens) || tokens.size == 0)
+        {
+            continue;
+        }
+
+        command_name = tolower(tokens[0]);
+        args = zm8_command_args(command_line);
+
+        if (command_name == "zm8_allperks")
+        {
+            zm8_cmd_allperks(args);
+        }
+        else if (command_name == "zm8_spawn")
+        {
+            zm8_cmd_spawn(args);
+        }
+        else if (command_name == "zm8_autospawn")
+        {
+            zm8_cmd_autospawn(args);
+        }
+        else if (command_name == "zm8_gum")
+        {
+            zm8_cmd_gum(args);
+        }
+        else if (command_name == "zm8_de_eecomplete")
+        {
+            zm8_de_cmd_eecomplete(args);
+        }
+        else if (command_name == "zm8_de_bossfight")
+        {
+            zm8_de_cmd_bossfight(args);
+        }
+        else if (command_name == "zm8_de_bows")
+        {
+            zm8_de_cmd_bows(args);
+        }
+        else if (command_name == "zm8_de_ragnarok")
+        {
+            zm8_de_cmd_ragnarok(args);
+        }
+        else if (command_name == "zm8_origins_generators")
+        {
+            zm8_origins_cmd_generators(args);
+        }
+        else if (command_name == "zm8_origins_eecomplete")
+        {
+            zm8_origins_cmd_eecomplete(args);
+        }
+        else if (command_name == "zm8_origins_eenext")
+        {
+            zm8_origins_cmd_eenext(args);
+        }
+        else if (command_name == "zm8_origins_punch")
+        {
+            zm8_origins_cmd_punch(args);
+        }
+        else if (command_name == "zm8_origins_staffs")
+        {
+            zm8_origins_cmd_staffs(args);
+        }
+        else if (command_name == "zm8_gk_eecomplete")
+        {
+            zm8_gk_cmd_eecomplete(args);
+        }
+        else if (command_name == "zm8_gk_arena")
+        {
+            zm8_gk_cmd_arena(args);
+        }
+        else if (command_name == "zm8_gk_koth")
+        {
+            zm8_gk_cmd_koth(args);
+        }
+        else if (command_name == "zm8_gk_weapons")
+        {
+            zm8_gk_cmd_weapons(args);
+        }
+        else if (command_name == "zm8_gk_gauntlet")
+        {
+            zm8_gk_cmd_gauntlet(args);
+        }
+    }
 }
 
 // Hand the host (player 0 on a listen server) any gum via the stock
@@ -778,7 +933,7 @@ function zm8_write_available_gums()
         return;
     }
 
-    mkdir("zm8");
+    sys::mkdir(0, "zm8");
 
     out = "# gobblegums usable on this map - write these names in gum_pack.txt\n";
     out += "# megas are marked and experimental\n";
@@ -797,14 +952,14 @@ function zm8_write_available_gums()
         out += "\n";
     }
 
-    writefile("zm8/available_gums.txt", out);
+    sys::writefile(0, "zm8/available_gums.txt", out);
 }
 
 function zm8_write_pack_template()
 {
-    mkdir("zm8");
+    sys::mkdir(0, "zm8");
 
-    if (fileexists("zm8/gum_pack.txt"))
+    if (sys::fileexists(0, "zm8/gum_pack.txt"))
     {
         return;
     }
@@ -820,7 +975,7 @@ function zm8_write_pack_template()
     t += "#in plain sight\n";
     t += "#stock option\n";
 
-    writefile("zm8/gum_pack.txt", t);
+    sys::writefile(0, "zm8/gum_pack.txt", t);
 }
 
 // Megas (consumables) need a per-gum tracking struct that _zm_bgb only builds
@@ -952,12 +1107,12 @@ function zm8_friendly_gum_name(internal)
 
 function zm8_read_shared_pack()
 {
-    if (!fileexists("zm8/gum_pack.txt"))
+    if (!sys::fileexists(0, "zm8/gum_pack.txt"))
     {
         return undefined;
     }
 
-    content = readfile("zm8/gum_pack.txt");
+    content = sys::readfile(0, "zm8/gum_pack.txt");
 
     if (!isdefined(content) || content == "")
     {
@@ -1128,11 +1283,125 @@ function zm8_zombie_counter()
 // zm8_origins_staffs hands out duplicates. Players 5-8 all get character
 // index 0 (extra Dempseys) from the map's own assigner; harmless.
 
+// Mark a stock Origins flag only after the map has initialized it. This keeps
+// the all-maps script safe and lets the stock stage threads observe the same
+// state they would after legitimate quest actions.
+function zm8_origins_set_flag(flag_name)
+{
+    if (isdefined(level.flag) && isdefined(level.flag[flag_name]) && !level.flag[flag_name])
+    {
+        level scripts\shared\flag_shared::set(flag_name);
+    }
+}
+
+// Activate the real six generator structs rather than only spoofing the EE
+// prerequisite. Their player-controlled/power flags drive perk validation,
+// the HUD, Pack-a-Punch and the main quest's all_zones_captured wait.
+function zm8_origins_activate_generators()
+{
+    if (!isdefined(level.zone_capture) || !isdefined(level.zone_capture.zones) || level.zone_capture.zones.size < 6)
+    {
+        zm8_announce("^1zm8: Origins generators are not initialized yet");
+        return false;
+    }
+
+    zone_names = getarraykeys(level.zone_capture.zones);
+
+    for (i = 0; i < zone_names.size; i++)
+    {
+        zone = level.zone_capture.zones[zone_names[i]];
+
+        if (!isdefined(zone))
+        {
+            continue;
+        }
+
+        zone.n_current_progress = 100;
+        zone.n_last_progress = 100;
+        zone scripts\shared\flag_shared::set("player_controlled");
+        zone scripts\shared\flag_shared::clear("zone_contested");
+        zone scripts\shared\flag_shared::clear("attacked_by_recapture_zombies");
+
+        if (isdefined(zone.script_int))
+        {
+            zm8_origins_set_flag("power_on" + zone.script_int);
+            level scripts\shared\clientfield_shared::set("zone_capture_hud_generator_" + zone.script_int, 1);
+            level scripts\shared\clientfield_shared::set("zone_capture_monolith_crystal_" + zone.script_int, 0);
+            level scripts\shared\clientfield_shared::set("zone_capture_perk_machine_smoke_fx_" + zone.script_int, 1);
+        }
+
+        if (isdefined(zone.script_noteworthy))
+        {
+            level scripts\shared\clientfield_shared::set(zone.script_noteworthy, 1);
+            level scripts\shared\clientfield_shared::set("state_" + zone.script_noteworthy, 2);
+        }
+    }
+
+    level.total_capture_zones = 6;
+    level scripts\shared\clientfield_shared::set("packapunch_anim", 6);
+    zm8_origins_set_flag("all_zones_captured");
+    zm8_origins_set_flag("power_on");
+
+    zm8_announce("^2zm8: all six Origins generators activated");
+    return true;
+}
+
+function zm8_origins_cmd_generators(args)
+{
+    if (getdvarstring("mapname") != "zm_tomb")
+    {
+        zm8_announce("^1zm8: zm8_origins_generators only works on Origins");
+        return;
+    }
+
+    zm8_origins_activate_generators();
+}
+
+// Satisfy each stock stage wait in order. The quest advances through its own
+// init/exit functions and stops at step 8's final portal interaction. Origins
+// has no separate boss arena; activating that portal plays the ending.
+function zm8_origins_cmd_eecomplete(args)
+{
+    if (getdvarstring("mapname") != "zm_tomb")
+    {
+        zm8_announce("^1zm8: zm8_origins_eecomplete only works on Origins");
+        return;
+    }
+
+    if (!isdefined(level._zombie_sidequests) || !isdefined(level._zombie_sidequests["little_girl_lost"]))
+    {
+        zm8_announce("^1zm8: Origins quest system not initialized");
+        return;
+    }
+
+    if (!zm8_origins_activate_generators())
+    {
+        return;
+    }
+
+    gates = [];
+    gates[0] = "ee_all_staffs_crafted";
+    gates[1] = "ee_all_staffs_upgraded";
+    gates[2] = "ee_all_staffs_placed";
+    gates[3] = "ee_mech_zombie_hole_opened";
+    gates[4] = "ee_quadrotor_disabled";
+    gates[5] = "ee_mech_zombie_fight_completed";
+    gates[6] = "ee_maxis_drone_retrieved";
+    gates[7] = "ee_all_players_upgraded_punch";
+    gates[8] = "ee_souls_absorbed";
+
+    for (i = 0; i < gates.size; i++)
+    {
+        zm8_origins_set_flag(gates[i]);
+    }
+
+    zm8_announce("^2zm8: Origins quest gates released - wait for the final portal");
+}
+
 // Force-complete the current quest step via the stock sidequest API (fires
 // the same notifies/bookkeeping as a legit completion). At step_0 the quest
 // has not started: it is gated on flags ee_all_staffs_crafted +
-// all_zones_captured; we set the former, but zone capture is live generator
-// state the capture system rewrites, so generators must genuinely be on.
+// all_zones_captured. Use zm8_origins_generators to satisfy the latter.
 function zm8_origins_cmd_eenext(args)
 {
     if (getdvarstring("mapname") != "zm_tomb")
@@ -1216,6 +1485,7 @@ function zm8_origins_complete_stage(quest, stage)
         }
 
         level notify("sidequest_" + quest.name + "_complete");
+        quest.sidequest_completed = 1;
     }
 }
 
@@ -1382,7 +1652,10 @@ function zm8_origins_give_staff(element)
 
         if (self hasweapon(w_old))
         {
-            self scripts\zm\_zm_weapons::weapon_take(w_old);
+            // Origins' own staff pickup path uses the native weapon calls.
+            // The generic zombie helpers treat staffs as limited weapons and
+            // can reclaim a cheat-granted staff during its pullout animation.
+            self takeweapon(w_old);
             had_staff = true;
         }
     }
@@ -1394,13 +1667,626 @@ function zm8_origins_give_staff(element)
 
         if (primaries.size >= limit)
         {
-            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+            self takeweapon(self getcurrentweapon());
         }
     }
 
     w_staff = getweapon("staff_" + element + "_upgraded");
-    self scripts\zm\_zm_weapons::weapon_give(w_staff, 0, 0, 1);
+
+    // Mirror zm_tomb_craftables::set_player_staff through the map's stored
+    // staff structs. Calling that map-only function statically would break
+    // every other map at link time.
+    base_name = "staff_" + element;
+
+    if (isdefined(level.a_elemental_staffs) && isdefined(level.a_elemental_staffs[base_name]))
+    {
+        staff = level.a_elemental_staffs[base_name];
+        staff.e_owner = self;
+
+        if (isdefined(staff.upgrade))
+        {
+            staff.upgrade.owner = self;
+            staff.upgrade.prev_ammo_stock = w_staff.maxammo;
+            staff.upgrade.prev_ammo_clip = w_staff.clipsize;
+        }
+
+        // The map's weapon-change watcher immediately takes an upgraded
+        // staff unless its paired revive weapon is also present. Legitimate
+        // pickups add this through update_staff_accessories().
+        if (isdefined(level.var_2b2f83e5))
+        {
+            self giveweapon(level.var_2b2f83e5);
+            self setactionslot(3, "weapon", level.var_2b2f83e5);
+        }
+
+        if (isdefined(staff.charger))
+        {
+            staff.charger.is_charged = 1;
+        }
+
+        self.staff_enum = staff.enum;
+
+        if (isdefined(self.characterindex) && isdefined(staff.element))
+        {
+            level scripts\shared\clientfield_shared::set(staff.element + "_staff.holder", self.characterindex + 1);
+        }
+
+        level scripts\shared\flag_shared::clear(base_name + "_zm_enabled");
+    }
+
+    self giveweapon(w_staff);
     self setweaponammostock(w_staff, w_staff.maxammo);
     self setweaponammoclip(w_staff, w_staff.clipsize);
     self switchtoweapon(w_staff);
+}
+
+// ========================== Gorod Krovi (zm8_gk_*) ==========================
+// Everything below is zm_stalingrad-only: the passive fixers bail out on
+// other maps and the commands are guarded by mapname. Hash names
+// (var_XXXXXXXX) are the decompiler's; the EZZ compiler resolves them.
+//
+// What breaks with 5-8 players on this map (decompile audit):
+//  - dragon ride: the dragon model only has tag_passenger1-4, so a 5th
+//    boarder errors on a missing link tag -> depart "full" at 4 riders
+//  - boss fight: the zombie-scaling arrays only cover 1-4 players and the
+//    fight-start teleport uses one map struct per active player -> pad both
+//  - easter egg: the network-console (KOTH) step and the sewer ride into
+//    the boss arena count ALL connected players, spectators included ->
+//    credit players who cannot participate
+
+function zm8_gk_init()
+{
+    level endon("end_game");
+
+    if (getdvarstring("mapname") != "zm_stalingrad")
+    {
+        return;
+    }
+
+    level thread zm8_gk_dragon_scaling_fixer();
+    level thread zm8_gk_nikolai_scaling_fixer();
+    level thread zm8_gk_arena_struct_fixer();
+    level thread zm8_gk_dragon_ride_guard();
+    level thread zm8_gk_koth_assist();
+    level thread zm8_gk_arena_gate_assist();
+}
+
+// Pad a per-player-count scaling array: copy the entry for a full 4-player
+// game into the slots for players 5-8 so lookups past the stock range keep
+// working. Index layout differs per system, so the caller passes it in.
+function zm8_gk_pad_scaling(arr, src, last)
+{
+    if (!isdefined(arr) || !isdefined(arr[src]))
+    {
+        return arr;
+    }
+
+    for (i = src + 1; i <= last; i++)
+    {
+        if (!isdefined(arr[i]))
+        {
+            arr[i] = arr[src];
+        }
+    }
+
+    return arr;
+}
+
+// zm_stalingrad_dragon sets its dragon-boss wave arrays (zombie counts,
+// spawn pacing, damage target) as 0-indexed arrays of 4 and reads them with
+// activeplayers.size - 1 - a script error at 5+. They appear when the boss
+// phase initializes, so keep re-checking.
+function zm8_gk_dragon_scaling_fixer()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        if (isdefined(level.var_e66ebd0c))
+        {
+            level.var_e66ebd0c = zm8_gk_pad_scaling(level.var_e66ebd0c, 3, 7);
+        }
+
+        if (isdefined(level.var_8447be11))
+        {
+            level.var_8447be11 = zm8_gk_pad_scaling(level.var_8447be11, 3, 7);
+        }
+
+        if (isdefined(level.var_ce49fa61))
+        {
+            level.var_ce49fa61 = zm8_gk_pad_scaling(level.var_ce49fa61, 3, 7);
+        }
+
+        wait 1;
+    }
+}
+
+// The Nikolai siegebot stores four 1-indexed (1-4) per-player-count arrays
+// on itself right after it spawns as level.var_cf6e9729, and its fight
+// thread reads them with players.size a few frames later - poll fast and
+// pad them in that window. Re-patches if the boss ent is ever replaced.
+function zm8_gk_nikolai_scaling_fixer()
+{
+    level endon("end_game");
+
+    patched = undefined;
+
+    while (true)
+    {
+        boss = level.var_cf6e9729;
+
+        if (isdefined(boss)
+            && (!isdefined(patched) || patched != boss)
+            && isdefined(boss.var_36fb48d9) && isdefined(boss.var_36fb48d9[4]))
+        {
+            boss.var_36fb48d9 = zm8_gk_pad_scaling(boss.var_36fb48d9, 4, 8);
+            boss.var_5b7a19fe = zm8_gk_pad_scaling(boss.var_5b7a19fe, 4, 8);
+            boss.var_4266e1d4 = zm8_gk_pad_scaling(boss.var_4266e1d4, 4, 8);
+            boss.var_ea7d582d = zm8_gk_pad_scaling(boss.var_ea7d582d, 4, 8);
+            patched = boss;
+            sys::println(0, "zm8: padded the nikolai boss scaling arrays for 5-8 players");
+        }
+
+        wait 0.05;
+    }
+}
+
+// At boss-fight start the map teleports every active player onto one
+// "s_nikolai_debug_player" struct each - stock maps only place 4. Clone the
+// stored structs (codescripts\struct keeps them in level.struct_class_names;
+// get_array() hands out copies of that table) up to 8 landing spots.
+function zm8_gk_arena_struct_fixer()
+{
+    level endon("end_game");
+
+    // struct tables are registered during map init
+    while (!isdefined(level.struct_class_names) || !isdefined(level.struct_class_names["targetname"]))
+    {
+        wait 1;
+    }
+
+    a_structs = level.struct_class_names["targetname"]["s_nikolai_debug_player"];
+
+    if (!isdefined(a_structs) || a_structs.size == 0 || a_structs.size >= 8)
+    {
+        return;
+    }
+
+    base = a_structs.size;
+
+    for (i = base; i < 8; i++)
+    {
+        s_orig = a_structs[i % base];
+        s_new = spawnstruct();
+        s_new.origin = s_orig.origin;
+        s_new.angles = s_orig.angles;
+        s_new.targetname = s_orig.targetname;
+        a_structs[a_structs.size] = s_new;
+    }
+
+    level.struct_class_names["targetname"]["s_nikolai_debug_player"] = a_structs;
+    sys::println(0, "zm8: padded the boss arena teleport spots from " + base + " to 8");
+}
+
+// The dragon transport links each boarder to tag_passenger<N> as they climb
+// on; only 4 tags exist on the model. Departure fires on the "dragon_full"
+// flag (or a timer), so declare the ride full the moment the 4th rider is
+// aboard - players 5+ catch the next flight. The rider list itself must
+// stay clean: the map iterates it for scenes and the eject sequence.
+// (Residual race: two players finishing the boarding hold within the same
+// server frame can still overfill - unlikely with a held use-prompt.)
+function zm8_gk_dragon_ride_guard()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        if (isdefined(level.var_163a43e4) && level.var_163a43e4.size >= 4
+            && isdefined(level.activeplayers) && level.activeplayers.size > 4
+            && isdefined(level.flag) && isdefined(level.flag["dragon_full"]) && !level.flag["dragon_full"])
+        {
+            level scripts\shared\flag_shared::set("dragon_full");
+            zm8_announce("^3zm8: dragon is full with 4 riders - the rest catch the next flight");
+        }
+
+        wait 0.05;
+    }
+}
+
+function zm8_gk_player_can_participate(player)
+{
+    return isdefined(player) && isalive(player) && player.sessionstate == "playing";
+}
+
+// EE network-console (KOTH) defense: the step only completes once EVERY
+// connected player has used a terminal, which a spectator can never do.
+// Credit any player the game would not accept as a participant. The flag
+// only exists on players after the map initializes it, hence the guard.
+function zm8_gk_koth_assist()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            player = players[i];
+
+            if (zm8_gk_player_can_participate(player))
+            {
+                continue;
+            }
+
+            if (isdefined(player) && isdefined(player.flag)
+                && isdefined(player.flag["ee_koth_terminal_used"]) && !player.flag["ee_koth_terminal_used"])
+            {
+                player scripts\shared\flag_shared::set("ee_koth_terminal_used");
+                sys::println(0, "zm8: credited " + player.name + " (not in play) for the koth terminal step");
+            }
+        }
+
+        wait 1;
+    }
+}
+
+// Boss-arena entry: the sewer trigger counts riders and the map waits until
+// that count reaches ALL connected players. Once every player who CAN ride
+// has done so (the map marks riders on the player), credit the rest so a
+// spectator can't strand the fight. zm8_gk_arena force-fires the same gate.
+function zm8_gk_arena_gate_assist()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        trig = getent("ee_sewer_to_arena_trig", "targetname");
+
+        if (isdefined(trig) && isdefined(trig.var_9469fd43) && trig.var_9469fd43 > 0)
+        {
+            waiting = false;
+            players = getplayers();
+
+            for (i = 0; i < players.size; i++)
+            {
+                player = players[i];
+
+                if (!isdefined(player))
+                {
+                    continue;
+                }
+
+                ridden = isdefined(player.var_a0a9409e) && player.var_a0a9409e;
+
+                if (!ridden && zm8_gk_player_can_participate(player))
+                {
+                    waiting = true;
+                    break;
+                }
+            }
+
+            if (!waiting && trig.var_9469fd43 < players.size)
+            {
+                trig.var_9469fd43 = players.size;
+                zm8_announce("^2zm8: everyone who can enter the arena is in - boss sequence starting");
+            }
+        }
+
+        wait 1;
+    }
+}
+
+// TEST cheat: push the "Love and War" quest to the boss phase by setting its
+// stage flags in order. The handlers chain off these flags, so each one
+// plays its part of the sequence; physical steps (cylinder, valves, key)
+// are skipped rather than replayed. After Sophia leaves, everyone rides the
+// sewer hatch into the arena (zm8_gk_arena unsticks that gate if needed).
+function zm8_gk_cmd_eecomplete(args)
+{
+    if (getdvarstring("mapname") != "zm_stalingrad")
+    {
+        zm8_announce("^1zm8: zm8_gk_eecomplete only works on Gorod Krovi");
+        return;
+    }
+
+    if (!isdefined(level.flag) || !isdefined(level.flag["sophia_escaped"]))
+    {
+        zm8_announce("^1zm8: quest system not initialized on this map");
+        return;
+    }
+
+    if (level.flag["sophia_escaped"])
+    {
+        zm8_announce("^3zm8: quest is already at the arena phase or beyond");
+        return;
+    }
+
+    zm8_announce("^2zm8: TEST - forcing the quest to the boss phase");
+    level thread zm8_gk_eecomplete_run();
+}
+
+function zm8_gk_eecomplete_run()
+{
+    level endon("end_game");
+
+    steps = [];
+    steps[0] = "ee_cylinder_acquired";
+    steps[1] = "tube_puzzle_complete";
+    steps[2] = "generator_on";
+    steps[3] = "generator_charged";
+    steps[4] = "keys_placed";
+    steps[5] = "scenarios_complete";
+    steps[6] = "ee_lockdown_complete";
+
+    for (i = 0; i < steps.size; i++)
+    {
+        if (isdefined(level.flag) && isdefined(level.flag[steps[i]]) && level.flag[steps[i]])
+        {
+            continue;
+        }
+
+        level scripts\shared\flag_shared::set(steps[i]);
+        zm8_announce("^2zm8: forced quest flag '" + steps[i] + "'");
+        wait 2;
+    }
+
+    // the KOTH console gate counts per-player terminal flags, not a level
+    // flag - credit everyone so its loop completes on its own
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (isdefined(player) && isdefined(player.flag)
+            && isdefined(player.flag["ee_koth_terminal_used"]) && !player.flag["ee_koth_terminal_used"])
+        {
+            player scripts\shared\flag_shared::set("ee_koth_terminal_used");
+        }
+    }
+
+    wait 2;
+
+    if (isdefined(level.flag) && isdefined(level.flag["weapon_cores_delivered"]) && !level.flag["weapon_cores_delivered"])
+    {
+        level scripts\shared\flag_shared::set("weapon_cores_delivered");
+        zm8_announce("^2zm8: forced quest flag 'weapon_cores_delivered'");
+    }
+
+    zm8_announce("^3zm8: wait for Sophia at the computer, then everyone rides the sewer hatch");
+    zm8_announce("^3zm8: use zm8_gk_arena if the boss sequence does not start once everyone is in");
+}
+
+// Unstick the boss-arena entry gate: the map waits for its sewer-ride
+// counter to reach ALL connected players. Anyone not already in the arena
+// when this fires misses the transport, so gather up first.
+function zm8_gk_cmd_arena(args)
+{
+    if (getdvarstring("mapname") != "zm_stalingrad")
+    {
+        zm8_announce("^1zm8: zm8_gk_arena only works on Gorod Krovi");
+        return;
+    }
+
+    trig = getent("ee_sewer_to_arena_trig", "targetname");
+
+    if (!isdefined(trig) || !isdefined(trig.var_9469fd43))
+    {
+        zm8_announce("^3zm8: arena gate is not active - reach the sewer ride first (or it already fired)");
+        return;
+    }
+
+    zm8_announce("^2zm8: arena gate satisfied - boss sequence starting (stragglers miss the ride!)");
+    trig.var_9469fd43 = level.players.size;
+}
+
+// Credit every connected player for the network-console (KOTH) step.
+function zm8_gk_cmd_koth(args)
+{
+    if (getdvarstring("mapname") != "zm_stalingrad")
+    {
+        zm8_announce("^1zm8: zm8_gk_koth only works on Gorod Krovi");
+        return;
+    }
+
+    count = 0;
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (isdefined(player) && isdefined(player.flag)
+            && isdefined(player.flag["ee_koth_terminal_used"]) && !player.flag["ee_koth_terminal_used"])
+        {
+            player scripts\shared\flag_shared::set("ee_koth_terminal_used");
+            count++;
+        }
+    }
+
+    zm8_announce("^2zm8: credited " + count + " player(s) for the koth terminal step");
+}
+
+// Cheat: hand out Gorod Krovi's wonder weapons.
+//   fire (default) = GKZ-45 Mk3 upgraded, strike = Dragon Strike upgraded,
+//   gauntlet = Gauntlet of Siegfried, shield = dragon shield (experimental:
+//   given without the map's craft monitors, so absorb behavior may differ)
+function zm8_gk_cmd_weapons(args)
+{
+    if (getdvarstring("mapname") != "zm_stalingrad")
+    {
+        zm8_announce("^1zm8: zm8_gk_weapons only works on Gorod Krovi");
+        return;
+    }
+
+    kind = "fire";
+
+    if (isdefined(args) && args.size >= 1)
+    {
+        kind = tolower(args[0]);
+    }
+
+    if (kind == "gkz" || kind == "gkz45")
+    {
+        kind = "fire";
+    }
+    else if (kind == "dragonstrike")
+    {
+        kind = "strike";
+    }
+    else if (kind == "dragonshield")
+    {
+        kind = "shield";
+    }
+
+    if (kind != "fire" && kind != "strike" && kind != "gauntlet" && kind != "shield")
+    {
+        zm8_announce("^1zm8: unknown weapon '" + kind + "' - use fire, strike, gauntlet or shield");
+        return;
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        if (kind == "fire")
+        {
+            player zm8_gk_give_primary("launcher_dragon_fire", "launcher_dragon_fire_upgraded");
+        }
+        else if (kind == "strike")
+        {
+            player zm8_gk_give_primary("launcher_dragon_strike", "launcher_dragon_strike_upgraded");
+        }
+        else if (kind == "gauntlet")
+        {
+            player zm8_gk_give_gauntlet();
+        }
+        else
+        {
+            player zm8_gk_give_shield();
+        }
+
+        count++;
+    }
+
+    zm8_announce("^2zm8: gave " + kind + " to " + count + " player(s)");
+}
+
+// Same slot handling as the DE bow cheat: take the base variant if held,
+// free a slot if full, give the upgrade with full ammo.
+function zm8_gk_give_primary(base_name, upgraded_name)
+{
+    w_new = getweapon(upgraded_name);
+
+    if (self hasweapon(w_new))
+    {
+        self setweaponammostock(w_new, w_new.maxammo);
+        self setweaponammoclip(w_new, w_new.clipsize);
+        return;
+    }
+
+    w_base = getweapon(base_name);
+
+    if (self hasweapon(w_base))
+    {
+        self scripts\zm\_zm_weapons::weapon_take(w_base);
+    }
+    else
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+        }
+    }
+
+    self scripts\zm\_zm_weapons::weapon_give(w_new, 0, 0, 1);
+    self setweaponammostock(w_new, w_new.maxammo);
+    self setweaponammoclip(w_new, w_new.clipsize);
+    self switchtoweapon(w_new);
+}
+
+// Mirror the map's own grant: the hero-slot weapon is the flamethrower
+// variant, given with full gadget power (_zm_weap_dragon_gauntlet is
+// map-only, so the calls are replicated inline).
+function zm8_gk_give_gauntlet()
+{
+    wpn = getweapon("dragon_gauntlet_flamethrower");
+
+    if (self hasweapon(wpn))
+    {
+        self gadgetpowerset(0, 100);
+        return;
+    }
+
+    self scripts\zm\_zm_weapons::weapon_give(wpn, 0, 1);
+    self gadgetpowerset(0, 100);
+}
+
+function zm8_gk_give_shield()
+{
+    wpn = getweapon("dragonshield");
+
+    if (self hasweapon(wpn))
+    {
+        return;
+    }
+
+    self scripts\zm\_zm_weapons::weapon_give(wpn);
+    self setactionslot(3, "weapon", wpn);
+}
+
+// Skip the Gauntlet of Siegfried incubation quest (its handlers chain off
+// these flags) and hand the weapon out.
+function zm8_gk_cmd_gauntlet(args)
+{
+    if (getdvarstring("mapname") != "zm_stalingrad")
+    {
+        zm8_announce("^1zm8: zm8_gk_gauntlet only works on Gorod Krovi");
+        return;
+    }
+
+    flags = [];
+    flags[0] = "gauntlet_step_2_complete";
+    flags[1] = "gauntlet_step_3_complete";
+    flags[2] = "gauntlet_step_4_complete";
+    flags[3] = "gauntlet_quest_complete";
+
+    for (i = 0; i < flags.size; i++)
+    {
+        if (isdefined(level.flag) && isdefined(level.flag[flags[i]]) && !level.flag[flags[i]])
+        {
+            level scripts\shared\flag_shared::set(flags[i]);
+            wait 1;
+        }
+    }
+
+    players = getplayers();
+    count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!zm8_gk_player_can_participate(player))
+        {
+            continue;
+        }
+
+        player zm8_gk_give_gauntlet();
+        count++;
+    }
+
+    zm8_announce("^2zm8: gauntlet quest skipped - gave the gauntlet to " + count + " player(s)");
 }

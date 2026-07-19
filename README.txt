@@ -142,6 +142,39 @@ zm8_origins_staffs [element]
                     combat works fine.
 
 
+GOROD KROVI COMMANDS (zm8_gk_*) AND AUTOMATIC FIXES
+---------------------------------------------------
+Three things break outright with 5-8 players; zm8 fixes them
+automatically (no command needed):
+- Dragon ride: only 4 passenger positions exist and a 5th boarder
+  crashes the script. zm8 departs the ride "full" at 4 riders;
+  everyone else catches the next flight.
+- Boss fight scaling: the final fight reads zombie tables sized for
+  1-4 players. zm8 pads them (5-8 players get 4-player pacing).
+- Boss arena teleport: fight start teleports each active player to
+  one of 4 landing spots. zm8 clones them up to 8.
+Two easter-egg gates count EVERY connected player (spectators too)
+and are auto-credited for players not in play: the network-console
+(KOTH) defense and the sewer ride into the boss arena.
+
+zm8_gk_eecomplete   TESTING CHEAT: force the "Love and War" quest
+                    flags in order up to the boss phase. Wait for
+                    Sophia to leave the computer, then everyone
+                    rides the sewer hatch into the arena. Skipped
+                    steps stay skipped - the ending cinematic may
+                    not play.
+zm8_gk_arena        unstick the boss-arena entry gate manually (it
+                    normally auto-credits spectators). Anyone not in
+                    the arena when it fires misses the transport.
+zm8_gk_koth         credit ALL players for the network-console step.
+zm8_gk_weapons [kind]
+                    cheat: give every living player a wonder weapon.
+                    fire = GKZ-45 Mk3 (default), strike = Dragon
+                    Strike, gauntlet = Gauntlet of Siegfried,
+                    shield = dragon shield (experimental).
+zm8_gk_gauntlet     skip the gauntlet incubation quest + give it.
+
+
 KNOWN LIMITATIONS
 -----------------
 - Scoreboard/HUD is built for 4 players; extra players may not show

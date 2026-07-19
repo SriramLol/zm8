@@ -74,6 +74,24 @@ Good news from the code audit: unlike Der Eisendrache, the Origins quest has no 
 | `zm8_origins_punch` | cheat: give every living player the upgraded One-Inch Punch and satisfy the step-6 "everyone upgraded" gate |
 | `zm8_origins_staffs [element]` | cheat: give every living player an upgraded staff with full ammo. Element: `fire`, `ice`, `wind` or `lightning`; no argument = a mix across the team. With 5+ players some staffs are duplicates — the per-element holder UI may look confused, combat works fine |
 
+### Gorod Krovi commands (`zm8_gk_*`) and automatic fixes
+
+Gorod Krovi needed the most work of any map so far. Three things break outright with 5–8 players, and zm8 fixes them **automatically** — no command needed:
+
+- **Dragon ride**: the dragon only has 4 passenger positions; a 5th boarder crashes the script. zm8 declares the ride full the moment 4 players are aboard — everyone else catches the next flight.
+- **Boss fight scaling**: the final fight reads zombie-count tables sized for 1–4 players; with 5+ the lookup errors mid-fight. zm8 pads the tables (5–8 players get 4-player pacing).
+- **Boss arena teleport**: the fight start teleports each active player to one of 4 landing spots. zm8 clones them up to 8.
+
+Two easter-egg gates count **every connected player** (spectators included) and are auto-credited for players who are not in play: the network-console (KOTH) defense and the sewer ride into the boss arena.
+
+| Command | Effect |
+|---|---|
+| `zm8_gk_eecomplete` | testing cheat: force the "Love and War" quest flags in order up to the boss phase. Wait for Sophia to leave the computer, then everyone rides the sewer hatch into the arena. Skipped physical steps stay skipped, so the ending cinematic may not play |
+| `zm8_gk_arena` | unstick the boss-arena entry gate manually (it normally auto-credits spectators). Anyone not in the arena when it fires misses the transport |
+| `zm8_gk_koth` | credit **all** players for the network-console defense step |
+| `zm8_gk_weapons [kind]` | cheat: give every living player a wonder weapon — `fire` (GKZ-45 Mk3, default), `strike` (Dragon Strike), `gauntlet` (Gauntlet of Siegfried), `shield` (dragon shield; experimental) |
+| `zm8_gk_gauntlet` | skip the Gauntlet of Siegfried incubation quest and hand the gauntlet out |
+
 ## Known limitations
 
 - Scoreboard/HUD is built for 4 players; extras may not show on some screens (gameplay unaffected)
