@@ -60,6 +60,8 @@ autoexec function zm8_init()
     level thread zm8_powerup_pool_fixer();
     level thread zm8_autospawn_monitor();
     level thread zm8_zombie_counter();
+    level thread zm8_de_bow_sharing_init();
+    level thread zm8_origins_staff_sharing_init();
     level thread zm8_gk_init();
 }
 
@@ -501,6 +503,35 @@ function zm8_de_bow_element_from_name(raw)
     return undefined;
 }
 
+// Free a primary-weapon slot safely. Taking getcurrentweapon() blindly can
+// grab a hero gadget, grenade or knife out of the engine's weapon watchers
+// mid-state and corrupt script variables (native ScrVar_ReleaseValue crash
+// seen in-game when a bow displaced a held DG-4). Only ever take a weapon
+// from the primaries list - the held one if it is a primary, else the first.
+function zm8_take_primary_for_slot()
+{
+    primaries = self getweaponslistprimaries();
+
+    if (!isdefined(primaries) || primaries.size == 0)
+    {
+        return;
+    }
+
+    w_take = primaries[0];
+    w_current = self getcurrentweapon();
+
+    for (j = 0; j < primaries.size; j++)
+    {
+        if (primaries[j] == w_current)
+        {
+            w_take = w_current;
+            break;
+        }
+    }
+
+    self scripts\zm\_zm_weapons::weapon_take(w_take);
+}
+
 function zm8_de_give_bow(element)
 {
     variants = [];
@@ -523,7 +554,7 @@ function zm8_de_give_bow(element)
         }
     }
 
-    // stock base-bow pickup frees a slot by taking the held weapon when full
+    // free a primary slot when full (never the held gadget/knife/grenade)
     if (!had_bow)
     {
         limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
@@ -531,7 +562,7 @@ function zm8_de_give_bow(element)
 
         if (primaries.size >= limit)
         {
-            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+            self zm8_take_primary_for_slot();
         }
     }
 
@@ -540,6 +571,108 @@ function zm8_de_give_bow(element)
     self setweaponammostock(w_bow, w_bow.maxammo);
     self setweaponammoclip(w_bow, w_bow.clipsize);
     self switchtoweapon(w_bow);
+}
+
+// The base Wrath of the Ancients altar is already per-player. Upgraded bow
+// pedestals are not: stock code records one quest owner, hides the model and
+// unregisters the trigger after pickup. Add independent reusable use-triggers
+// after each upgrade is complete so players 5-8 can take combat duplicates.
+function zm8_de_bow_sharing_init()
+{
+    if (getdvarstring("mapname") != "zm_castle")
+    {
+        return;
+    }
+
+    level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_demon_gate", "demon_gate_spawned", "demongate");
+    level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_rune_prison", "rune_prison_spawned", "rune_prison");
+    level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_elemental_storm", "elemental_storm_spawned", "storm");
+    level thread zm8_de_shared_bow_pedestal("upgraded_bow_struct_wolf_howl", "wolf_howl_spawned", "wolf_howl");
+    sys::println(0, "zm8: DE upgraded bow pedestals allow duplicate pickups");
+}
+
+function zm8_de_player_has_upgraded_bow(player)
+{
+    variants = [];
+    variants[0] = "elemental_bow_storm";
+    variants[1] = "elemental_bow_demongate";
+    variants[2] = "elemental_bow_wolf_howl";
+    variants[3] = "elemental_bow_rune_prison";
+
+    for (i = 0; i < variants.size; i++)
+    {
+        if (player hasweapon(getweapon(variants[i])))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function zm8_de_shared_bow_pedestal(struct_name, ready_flag, element)
+{
+    level endon("end_game");
+
+    while (!isdefined(level.flag) || !isdefined(level.flag[ready_flag]) || !level.flag[ready_flag])
+    {
+        wait 0.25;
+    }
+
+    bow_struct = scripts\codescripts\struct::get(struct_name, "targetname");
+
+    if (!isdefined(bow_struct))
+    {
+        sys::println(0, "zm8: missing DE bow pedestal struct " + struct_name);
+        return;
+    }
+
+    pickup = spawn("trigger_radius", bow_struct.origin, 1, 80, 100);
+    pickup setcursorhint("HINT_NOICON");
+
+    if (element == "demongate")
+    {
+        pickup sethintstring(&"ZM_CASTLE_PICK_UP_FIRE_BOW");
+    }
+    else if (element == "rune_prison")
+    {
+        pickup sethintstring(&"ZM_CASTLE_PICK_UP_ICE_BOW");
+    }
+    else if (element == "storm")
+    {
+        pickup sethintstring(&"ZM_CASTLE_PICK_UP_LIGHTNING_BOW");
+    }
+    else
+    {
+        pickup sethintstring(&"ZM_CASTLE_PICK_UP_WIND_BOW");
+    }
+
+    while (true)
+    {
+        // Stock hides this after its one tracked pickup. The duplicate pickup
+        // deliberately leaves it visible and does not overwrite quest owner.
+        if (isdefined(bow_struct.var_d4a62e6b))
+        {
+            bow_struct.var_d4a62e6b show();
+        }
+
+        pickup waittill("trigger", player);
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        // A base bow is replaced as usual. Once a player owns any upgraded
+        // bow, another pedestal cannot silently swap it.
+        if (zm8_de_player_has_upgraded_bow(player))
+        {
+            continue;
+        }
+
+        player zm8_de_give_bow(element);
+        player playsound("zmb_bow_pickup");
+    }
 }
 
 // Give every player the Ragnarok DG-4 exactly like the stock pickup trigger:
@@ -582,7 +715,15 @@ function zm8_de_cmd_ragnarok(args)
         }
 
         player scripts\zm\_zm_weapons::weapon_give(wpn, 0, 1);
-        player gadgetpowerset(player gadgetgetslot(wpn), 100);
+
+        // gadgetgetslot returns -1 if the gadget didn't register - passing
+        // that to gadgetpowerset is a native out-of-bounds write
+        n_slot = player gadgetgetslot(wpn);
+
+        if (n_slot >= 0)
+        {
+            player gadgetpowerset(n_slot, 100);
+        }
 
         // _zm_weap_gravityspikes is castle-only and this script links on
         // every map, so set the state field the way its helper does
@@ -1283,6 +1424,172 @@ function zm8_zombie_counter()
 // zm8_origins_staffs hands out duplicates. Players 5-8 all get character
 // index 0 (extra Dempseys) from the map's own assigner; harmless.
 
+// Origins normally treats each elemental staff as a globally limited weapon:
+// the persistent pedestal handler refuses a pickup while any player owns that
+// element, then ghosts the model until it is returned. Wrap the map's stored
+// function pointers so every player may take a duplicate from the same
+// pedestal. Non-staff craftables still use the original map callbacks.
+function zm8_origins_staff_sharing_init()
+{
+    if (getdvarstring("mapname") != "zm_tomb")
+    {
+        return;
+    }
+
+    while (!isdefined(level.custom_craftable_validation) || !isdefined(level.zombie_craftable_persistent_weapon))
+    {
+        wait 0.1;
+    }
+
+    if (isdefined(level.zm8_origins_staff_sharing_installed))
+    {
+        return;
+    }
+
+    level.zm8_origins_staff_sharing_installed = true;
+    level.zm8_origins_stock_craftable_validation = level.custom_craftable_validation;
+    level.zm8_origins_stock_persistent_weapon = level.zombie_craftable_persistent_weapon;
+    level.custom_craftable_validation = &zm8_origins_shared_staff_validation;
+    level.zombie_craftable_persistent_weapon = &zm8_origins_shared_staff_pickup;
+    sys::println(0, "zm8: Origins staff pedestals allow duplicate pickups");
+}
+
+function zm8_origins_is_staff_craftable(trigger)
+{
+    return isdefined(trigger) && isdefined(trigger.stub) && isdefined(trigger.stub.weaponname) && issubstr(trigger.stub.weaponname.name, "staff_");
+}
+
+function zm8_origins_shared_staff_validation(player)
+{
+    if (!zm8_origins_is_staff_craftable(self))
+    {
+        return self [[level.zm8_origins_stock_craftable_validation]](player);
+    }
+
+    if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+    {
+        return false;
+    }
+
+    // Keep the stock one-staff-per-player rule while removing the global
+    // one-copy-per-element rule.
+    weapons = player getweaponslistprimaries();
+
+    for (i = 0; i < weapons.size; i++)
+    {
+        if (issubstr(weapons[i].name, "staff_"))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function zm8_origins_staff_element_from_weapon(weapon_name)
+{
+    if (issubstr(weapon_name, "staff_fire"))
+    {
+        return "fire";
+    }
+
+    if (issubstr(weapon_name, "staff_water"))
+    {
+        return "water";
+    }
+
+    if (issubstr(weapon_name, "staff_air"))
+    {
+        return "air";
+    }
+
+    if (issubstr(weapon_name, "staff_lightning"))
+    {
+        return "lightning";
+    }
+
+    return undefined;
+}
+
+function zm8_origins_shared_staff_pickup(player)
+{
+    if (!zm8_origins_is_staff_craftable(self))
+    {
+        return self [[level.zm8_origins_stock_persistent_weapon]](player);
+    }
+
+    element = zm8_origins_staff_element_from_weapon(self.stub.weaponname.name);
+
+    if (!isdefined(element))
+    {
+        return true;
+    }
+
+    base_name = "staff_" + element;
+    upgraded = false;
+
+    if (isdefined(level.a_elemental_staffs) && isdefined(level.a_elemental_staffs[base_name]))
+    {
+        staff = level.a_elemental_staffs[base_name];
+
+        if (isdefined(staff.charger) && isdefined(staff.charger.is_charged) && staff.charger.is_charged)
+        {
+            upgraded = true;
+        }
+
+        player.staff_enum = staff.enum;
+    }
+
+    weapon_name = base_name;
+
+    if (upgraded)
+    {
+        weapon_name += "_upgraded";
+
+        // The map's weapon-change watcher requires the paired revive weapon
+        // whenever an upgraded staff is held.
+        if (isdefined(level.var_2b2f83e5))
+        {
+            player giveweapon(level.var_2b2f83e5);
+            player setactionslot(3, "weapon", level.var_2b2f83e5);
+        }
+    }
+
+    w_staff = getweapon(weapon_name);
+    limit = scripts\zm\_zm_utility::get_player_weapon_limit(player);
+    primaries = player getweaponslistprimaries();
+
+    if (primaries.size >= limit && primaries.size > 0)
+    {
+        // native take, but never a held gadget/knife/grenade - only a
+        // primary (see zm8_take_primary_for_slot for the crash story)
+        w_take = primaries[0];
+        w_current = player getcurrentweapon();
+
+        for (j = 0; j < primaries.size; j++)
+        {
+            if (primaries[j] == w_current)
+            {
+                w_take = w_current;
+                break;
+            }
+        }
+
+        player takeweapon(w_take);
+    }
+
+    player giveweapon(w_staff);
+    player setweaponammostock(w_staff, w_staff.maxammo);
+    player setweaponammoclip(w_staff, w_staff.clipsize);
+    player switchtoweapon(w_staff);
+    player notify(weapon_name + "_pickup_from_table");
+
+    // Returning true tells the generic craftable loop that this map-specific
+    // handler completed the pickup. We intentionally do not ghost the model
+    // or assign the staff's single e_owner field.
+    return true;
+}
+
 // Mark a stock Origins flag only after the map has initialized it. This keeps
 // the all-maps script safe and lets the stock stage threads observe the same
 // state they would after legitimate quest actions.
@@ -1667,7 +1974,21 @@ function zm8_origins_give_staff(element)
 
         if (primaries.size >= limit)
         {
-            self takeweapon(self getcurrentweapon());
+            // native take, but never a held gadget/knife/grenade - only a
+            // primary (see zm8_take_primary_for_slot for the crash story)
+            w_take = primaries[0];
+            w_current = self getcurrentweapon();
+
+            for (j = 0; j < primaries.size; j++)
+            {
+                if (primaries[j] == w_current)
+                {
+                    w_take = w_current;
+                    break;
+                }
+            }
+
+            self takeweapon(w_take);
         }
     }
 
@@ -2207,7 +2528,7 @@ function zm8_gk_give_primary(base_name, upgraded_name)
 
         if (primaries.size >= limit)
         {
-            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+            self zm8_take_primary_for_slot();
         }
     }
 
