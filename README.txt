@@ -30,8 +30,12 @@ INSTALLATION
    folder structure. Merge folders if asked. You should end up with:
 
       <your BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_factory\zm8_factory.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_theater\zm8_theater.gsc
       <your BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
       <your BO3 folder>\launch-zm8.bat
       <your BO3 folder>\zm8-gum-picker.bat
@@ -100,6 +104,16 @@ setup commands are cheats. Most 5-8 player fixes run automatically.
                     (default: OFF each game)
 [TESTING CHEAT] zm8_allperks 1 / 0
                     explicitly on / off
+[TESTING CHEAT] zm8_godmode [1|0]
+                    toggle the host's maintained damage immunity,
+                    all perks, 2x movement speed, unlimited sprint,
+                    ammunition and points. Enabling also opens every
+                    registered buyable door, airlock and debris
+                    barrier (plus map open-sesame listeners), and
+                    gives a Pack-a-Punched KRM-262 with Dead Wire
+                    using the host's weapon-kit attachments/camo.
+                    Turning it off stops maintenance but keeps opened
+                    barriers, granted perks, points and the KRM.
 [HOST UTILITY] zm8_spawn
                     spawn in everyone waiting in spectate right now
                     (mid-round joiners AND bled-out players - works
@@ -335,6 +349,48 @@ per-player-count tables. The split spawn (two per side) safely
 falls back for players 5-8 (they spawn on the first point of one
 side). The global zm8 systems cover the whole map; there are no
 zm8_asylum_* commands.
+
+ASCENSION AUTOMATIC FIXES (zm_cosmodrome)
+-----------------------------------------
+AUTOMATIC 5-8 COMPATIBILITY FIXES, not cheats:
+- The lunar lander has only four physical rider anchors. A normal
+  trip now takes at most four players; extras safely take the next
+  trip. The mandatory opening cinematic shares the four anchors.
+- The Matryoshka-doll side egg now folds player indices 5-8 onto
+  the four valid VO sets instead of playing an undefined alias.
+The main quest pressure pad has no four-player limit but legitimately
+requires every active participant in its large trigger. A spectator
+or straggler can stop its timer. There are no zm8_cosmodrome_* commands.
+
+THE GIANT AUTOMATIC FIX (zm_factory)
+------------------------------------
+AUTOMATIC 5-8 COMPATIBILITY FIX, not a cheat: the mainframe
+teleporter's stock staging loop only examines players 1-4. zm8
+includes everyone on the pad and safely shares the four physical
+staging/arrival spots, offsetting players 5-8. The rest of the map
+has no player-count gates; there are no zm8_factory_* commands.
+
+KINO DER TOTEN AUTOMATIC FIX (zm_theater)
+-----------------------------------------
+AUTOMATIC 5-8 COMPATIBILITY FIX, not a cheat: stock teleporter code
+indexes its four spots with the player number, so player 5 reads past
+the array. zm8 folds players 5-8 onto valid spots with nearby offsets
+at both ends. Kino has no main quest/player-count gate and adds no
+zm8_theater_* commands.
+
+SHI NO NUMA AUTOMATIC FIX (zm_sumpf)
+------------------------------------
+AUTOMATIC 5-8 COMPATIBILITY FIX, not a cheat: the zipline has four
+attachment tags but stock code keeps assigning riders after all four
+are used. zm8 limits a trip to four riders; extras safely take the
+next/return trip. There are no other player-count gates and no
+zm8_sumpf_* commands.
+
+NACHT DER UNTOTEN
+-----------------
+Audited - needs nothing. No transport, quest, player-count balance
+table or fixed player-slot array. The global zm8 systems cover it;
+there are no zm8_prototype_* commands.
 
 
 KNOWN LIMITATIONS

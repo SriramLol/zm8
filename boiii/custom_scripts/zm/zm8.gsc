@@ -50,13 +50,15 @@ autoexec function zm8_init()
     wait 6;
     zm8_announce("^2zm8 mod loaded - 8 player cap, mid-round auto-spawn on");
 
-    // per-game defaults: all-perks off, auto-spawn on (toggles last one game)
+    // per-game defaults: cheats off, auto-spawn on (toggles last one game)
     level.zm8_allperks = false;
+    level.zm8_godmode = false;
     level.zm8_autospawn = true;
 
     level thread zm8_character_index_fixer();
     level thread zm8_bgb_pack_fixer();
     level thread zm8_allperks_monitor();
+    level thread zm8_godmode_monitor();
     level thread zm8_powerup_pool_fixer();
     level thread zm8_autospawn_monitor();
     level thread zm8_zombie_counter();
@@ -111,6 +113,10 @@ function zm8_powerup_pool_fixer()
 
 // host console commands, any map:
 //   zm8_allperks  [0|1]  (no arg = toggle) - permanent all-perks
+//   zm8_godmode   [0|1]  (no arg = toggle) - host immunity, all perks,
+//                          speed/stamina, infinite ammo/points, open all
+//                          buyable barriers and give a build-kit PaP KRM-262
+//                          with Dead Wire
 //   zm8_spawn            - force every waiting spectator to spawn in now
 //   zm8_autospawn [0|1]  (no arg = toggle) - auto-spawn mid-round joiners
 //   zm8_gum <name>       - cheat: give the host any gum right now
@@ -222,6 +228,7 @@ function zm8_powerup_pool_fixer()
 function zm8_register_commands()
 {
     sys::addcommand(0, "zm8_allperks");
+    sys::addcommand(0, "zm8_godmode");
     sys::addcommand(0, "zm8_spawn");
     sys::addcommand(0, "zm8_autospawn");
     sys::addcommand(0, "zm8_gum");
@@ -310,6 +317,10 @@ function zm8_command_dispatch_loop()
         if (command_name == "zm8_allperks")
         {
             zm8_cmd_allperks(args);
+        }
+        else if (command_name == "zm8_godmode")
+        {
+            zm8_cmd_godmode(args);
         }
         else if (command_name == "zm8_spawn")
         {
@@ -567,7 +578,7 @@ function zm8_de_cmd_test(args)
     if (players.size > 0)
     {
         wait 0.25;
-        level.zm8_de_test_buyables = zm8_de_force_open_buyables(players[0]);
+        level.zm8_de_test_buyables = zm8_force_open_buyables(players[0]);
     }
 
     zone_names = getarraykeys(level.zones);
@@ -613,7 +624,10 @@ function zm8_de_cmd_test(args)
     zm8_announce("^2zm8: DE test setup - buyable doors open, power and immunity on");
 }
 
-function zm8_de_force_open_buyables(host)
+// Generic replica of the stock open-sesame developer routine. These three
+// targetname groups are the shared zombie barrier system used across maps;
+// the open_sesame notify also lets map scripts release their special gates.
+function zm8_force_open_buyables(host)
 {
     if (!isdefined(host))
     {
@@ -643,6 +657,12 @@ function zm8_de_force_open_buyables(host)
         }
 
         doors[i] notify("trigger", host, 1);
+
+        if (isdefined(doors[i].power_door_ignore_flag_wait) && doors[i].power_door_ignore_flag_wait)
+        {
+            doors[i] notify("power_on");
+        }
+
         opened++;
         wait 0.05;
     }
@@ -1534,6 +1554,197 @@ function zm8_cmd_allperks(args)
     {
         zm8_announce("^3zm8: permanent all-perks OFF (perks already given stay until lost)");
     }
+}
+
+// Host-only testing preset. Console commands have no player caller entity on
+// this client, so player 0 is the listen-server host (the same convention used
+// by zm8_gum). Turning it off stops every maintained effect; equipment, points
+// and perks already granted are intentionally not taken away.
+function zm8_cmd_godmode(args)
+{
+    enable = !(isdefined(level.zm8_godmode) && level.zm8_godmode);
+
+    if (isdefined(args) && args.size >= 1)
+    {
+        enable = (args[0] == "1");
+    }
+
+    players = getplayers();
+
+    if (players.size == 0)
+    {
+        return;
+    }
+
+    host = players[0];
+    level.zm8_godmode = enable;
+
+    if (enable)
+    {
+        level.zm8_godmode_host = host;
+        host.zm8_godmode = true;
+        host enableinvulnerability();
+        host setmovespeedscale(2);
+        host setclientplayersprinttime(999999);
+        host zm8_godmode_give_krm();
+        level thread zm8_godmode_open_buyables(host);
+        zm8_announce("^2zm8: GODMODE ON for " + host.name + " - immunity, perks, speed, ammo, points and open barriers");
+        return;
+    }
+
+    target = host;
+
+    if (isdefined(level.zm8_godmode_host))
+    {
+        target = level.zm8_godmode_host;
+    }
+
+    if (isdefined(target))
+    {
+        target.zm8_godmode = false;
+        target setmovespeedscale(1);
+
+        if (isdefined(level.playersprinttime))
+        {
+            target setclientplayersprinttime(level.playersprinttime);
+        }
+        else
+        {
+            target setclientplayersprinttime(4);
+        }
+
+        // Do not cancel the independently enabled DE test immunity toggle.
+        if (!(isdefined(level.zm8_de_test_invulnerable) && level.zm8_de_test_invulnerable))
+        {
+            target disableinvulnerability();
+        }
+    }
+
+    level.zm8_godmode_host = undefined;
+    zm8_announce("^3zm8: GODMODE OFF (granted perks, points and KRM remain)");
+}
+
+function zm8_godmode_monitor()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        if (!(isdefined(level.zm8_godmode) && level.zm8_godmode)
+            || !isdefined(level.zm8_godmode_host))
+        {
+            wait 0.1;
+            continue;
+        }
+
+        player = level.zm8_godmode_host;
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            wait 0.1;
+            continue;
+        }
+
+        player enableinvulnerability();
+        player setmovespeedscale(2);
+        player setclientplayersprinttime(999999);
+
+        // Refill to a practical infinity after every purchase/score change.
+        if (!isdefined(player.score) || player.score < 999990)
+        {
+            player.score = 999990;
+            player.pers["score"] = player.score;
+        }
+
+        weapons = player getweaponslistprimaries();
+
+        for (i = 0; i < weapons.size; i++)
+        {
+            weapon = weapons[i];
+
+            if (isdefined(weapon.maxammo) && weapon.maxammo > 0)
+            {
+                player setweaponammostock(weapon, weapon.maxammo);
+            }
+
+            if (isdefined(weapon.clipsize) && weapon.clipsize > 0)
+            {
+                player setweaponammoclip(weapon, weapon.clipsize);
+            }
+        }
+
+        if (!(isdefined(player.laststand) && player.laststand))
+        {
+            level.perk_purchase_limit = 100;
+            perks = zm8_perk_list();
+
+            for (i = 0; i < perks.size; i++)
+            {
+                if (!(player hasperk(perks[i])))
+                {
+                    player thread scripts\zm\_zm_perks::give_perk(perks[i], 0);
+                    wait 0.1;
+                }
+            }
+        }
+
+        wait 0.1;
+    }
+}
+
+// Replace an existing KRM (or safely free one primary slot), then use the
+// stock build-kit giver so the host's attachments/camo are preserved. The
+// returned weapon object is the exact attachment variant that must receive
+// ammo and the Dead Wire AAT association.
+function zm8_godmode_give_krm()
+{
+    primaries = self getweaponslistprimaries();
+    removed_krm = false;
+
+    for (i = 0; i < primaries.size; i++)
+    {
+        if (issubstr(primaries[i].name, "shotgun_pump"))
+        {
+            self scripts\zm\_zm_weapons::weapon_take(primaries[i]);
+            removed_krm = true;
+            break;
+        }
+    }
+
+    if (!removed_krm)
+    {
+        limit = scripts\zm\_zm_utility::get_player_weapon_limit(self);
+        primaries = self getweaponslistprimaries();
+
+        if (primaries.size >= limit)
+        {
+            self zm8_take_primary_for_slot();
+        }
+    }
+
+    krm = getweapon("shotgun_pump_upgraded");
+    krm = self scripts\zm\_zm_weapons::give_build_kit_weapon(krm);
+    self setweaponammostock(krm, krm.maxammo);
+    self setweaponammoclip(krm, krm.clipsize);
+
+    if (isdefined(level.aat_in_use) && level.aat_in_use
+        && isdefined(level.aat) && isdefined(level.aat["zm_aat_dead_wire"]))
+    {
+        self scripts\shared\aat_shared::acquire(krm, "zm_aat_dead_wire");
+    }
+
+    self switchtoweapon(krm);
+}
+
+function zm8_godmode_open_buyables(host)
+{
+    level endon("end_game");
+
+    // Give late map-init threads a moment to register every barrier listener.
+    wait 0.5;
+    opened = zm8_force_open_buyables(host);
+    level.zm8_godmode_buyables = opened;
+    zm8_announce("^2zm8: forced " + opened + " buyable door/debris trigger(s) and map open-sesame gates");
 }
 
 // Stock behavior: mid-round joiners (and bled-out players) sit in spectate

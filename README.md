@@ -22,8 +22,12 @@ The 4-player limit in classic zombies is script-enforced, not an engine limit �
 2. Copy the contents of this repo (or the release zip) into it, keeping the folder structure:
    ```
    <BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_factory\zm8_factory.gsc
    <BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
    <BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_theater\zm8_theater.gsc
    <BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
    <BO3 folder>\launch-zm8.bat
    <BO3 folder>\zm8-gum-picker.bat
@@ -61,6 +65,7 @@ The only manual commands currently classified as strict 5–8-player compatibili
 |---|---|
 | `zm8_allperks` | **Testing cheat:** toggle permanent all-perks for everyone (default: off) |
 | `zm8_allperks 1` / `0` | **Testing cheat:** explicitly enable / disable permanent all-perks |
+| `zm8_godmode [1\|0]` | **Testing cheat:** toggle the host's maintained damage immunity, all perks, 2× movement speed, unlimited sprint, ammunition and points. Enabling also force-opens every registered buyable door, airlock and debris barrier (plus map `open_sesame` listeners), and gives a Pack-a-Punched KRM-262 with Dead Wire using the host's weapon-kit attachments/camo. Turning it off stops maintenance but does not close barriers or revoke granted perks, points or the KRM |
 | `zm8_spawn` | **Host utility:** spawn everyone waiting in spectate right now (mid-round joiners and bled-out players). Using it on the latter is an early-revive cheat |
 | `zm8_autospawn` | **Host utility:** toggle auto-spawn for mid-round joiners within ~3s; bled-out players remain excluded. Default: on |
 | `zm8_autospawn 1` / `0` | **Host utility:** explicitly enable / disable joiner auto-spawn |
@@ -179,6 +184,31 @@ The easter egg itself has no player-count gates. Two steps wait for **all** play
 ### Verrückt
 
 Audited — **needs nothing**. No quest, no map-specific wonder weapon, no per-player-count tables. The split spawn (two per side) safely falls back for players 5–8: they spawn on the first point of one side. The global zm8 systems (8-cap, character fallback, gums) cover the whole map, so there are no `zm8_asylum_*` commands.
+
+### Ascension automatic fixes (`zm_cosmodrome`)
+
+Two fixed-four assumptions are repaired automatically by `custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc`:
+
+- **Lunar lander:** the vehicle has only four physical rider anchors. Stock code writes through anchor index `-1` when a fifth player boards and can script-error. A normal trip now takes at most four players; players 5–8 remain safely at the station and take the next trip. The mandatory opening cinematic carries everybody by sharing the four cinematic anchors.
+- **Matryoshka-doll VO:** the side egg's response switch only handles player indices 0–3. Players 5–8 now reuse the corresponding modulo-four voice so an undefined sound alias cannot abort the interaction.
+
+These are automatic **5–8-player compatibility fixes**, not cheats. Ascension's main quest pressure-pad step legitimately asks every active participant to stay inside the same large trigger; it has no four-player array limit, but a spectator/straggler can stop its timer. Ascension adds no console commands.
+
+### The Giant automatic fix (`zm_factory`)
+
+The mainframe teleporter's stock staging loop only examines players 1–4. `custom_scripts\zm_factory\zm8_factory.gsc` includes every player standing on the pad and safely shares the four physical staging/arrival spots, with a small offset for players 5–8. This is an automatic **5–8-player compatibility fix**, not a cheat. The rest of The Giant has no player-count gates, so there are no `zm8_factory_*` commands.
+
+### Kino der Toten automatic fix (`zm_theater`)
+
+Kino's teleporter has four physical staging and destination spots, but stock code directly indexes that four-entry array with the player number. Player 5 therefore reads past the end and can abort the teleport. `custom_scripts\zm_theater\zm8_theater.gsc` folds players 5–8 onto the four valid slots and gives the second group a nearby offset at both ends. This is an automatic **5–8-player compatibility fix**, not a cheat. Kino has no main quest or player-count gate, so there are no `zm8_theater_*` commands.
+
+### Shi No Numa automatic fix (`zm_sumpf`)
+
+The zipline has four model attachment tags. Stock code removes each tag as it assigns a rider but keeps iterating players, leaving player 5 linked to an undefined tag. `custom_scripts\zm_sumpf\zm8_sumpf.gsc` limits each trip to four riders; extra players remain safely at the stop and can take the next/return trip. This is an automatic **5–8-player compatibility fix**, not a cheat. Shi No Numa has no main quest or other player-count gate, so there are no `zm8_sumpf_*` commands.
+
+### Nacht der Untoten
+
+Audited — **needs nothing**. Nacht has no map transport, quest, player-count balance table or fixed player-slot array. The global zm8 systems cover the map, so there are no `zm8_prototype_*` commands.
 
 ## Known limitations
 
