@@ -29,7 +29,7 @@ The 4-player limit in classic zombies is script-enforced, not an engine limit �
    <BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
    <BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
    <BO3 folder>\boiii\custom_scripts\zm_theater\zm8_theater.gsc
-   <BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
+   <BO3 folder>\boiii\ui_scripts\zm_8player\__init__.lua
    <BO3 folder>\launch-zm8.bat
    <BO3 folder>\zm8-gum-picker.bat
    <BO3 folder>\zm8-gum-picker.ps1
@@ -38,7 +38,7 @@ The 4-player limit in classic zombies is script-enforced, not an engine limit �
 
 ## Hosting
 
-1. Start the game with **`launch-zm8.bat`** (not `boiii.exe` directly — the client wipes extra UI files at startup; the bat re-installs the 8-slot lobby patch after launch).
+1. Start the game however you like — `boiii.exe`, the EZZ launcher, or `launch-zm8.bat`. The UI patch now lives in `boiii\ui_scripts\`, which the client loads directly and never wipes (older versions used the appdata folder, which the client purges at startup — that's what the bat worked around; it's no longer required).
 2. Zombies → Private Game → any map → **Configure Game Ranking → non-ranked** (custom scripts only load in non-ranked matches).
 3. Start. ~6 seconds in you'll see **"zm8 mod loaded - 8 player cap active"** and the zombie counter.
 4. Friends join via server browser or `connect <your-ip>` — up to 8 total.

@@ -39,7 +39,7 @@ INSTALLATION
       <your BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_theater\zm8_theater.gsc
-      <your BO3 folder>\boiii\data\ui_scripts\zm_8player\__init__.lua
+      <your BO3 folder>\boiii\ui_scripts\zm_8player\__init__.lua
       <your BO3 folder>\launch-zm8.bat
       <your BO3 folder>\zm8-gum-picker.bat
       <your BO3 folder>\zm8-gum-picker.ps1
@@ -49,11 +49,11 @@ INSTALLATION
 
 HOW TO PLAY (HOST)
 ------------------
-1. Start the game with launch-zm8.bat (NOT boiii.exe directly).
-   Why: the client deletes extra UI files on every start; the bat
-   re-installs the 8-player lobby patch after startup. If you forget,
-   the mod still works - only the lobby will claim "4 Max" (fix: run
-   the bat again, or console: set party_maxplayers 8)
+1. Start the game however you like - boiii.exe, the EZZ launcher, or
+   launch-zm8.bat. The UI patch now lives in boiii\ui_scripts\, which
+   the client loads directly and never wipes (older versions used the
+   appdata folder, which the client purges at startup - that is what
+   the bat worked around; it is no longer required).
 
 2. In-game: ZOMBIES -> PRIVATE GAME -> pick any map.
 

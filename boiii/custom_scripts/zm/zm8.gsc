@@ -1971,11 +1971,23 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
         zm8_announce("^2zm8: spawning in " + player.name);
         player scripts\zm\_zm::spectator_respawn_player();
 
-        // put them on solid ground next to a teammate instead of wherever
-        // the fallback spawn struct points
+        // put them on solid ground near a teammate instead of wherever the
+        // fallback spawn struct points - in a ring, NOT on top of the anchor
+        // (stacked players block each other's movement; a host buried under
+        // five bots is zombie food)
         if (isdefined(anchor) && isdefined(player) && anchor != player)
         {
-            player setorigin(anchor.origin);
+            a_offsets = [];
+            a_offsets[0] = (60, 0, 0);
+            a_offsets[1] = (-60, 0, 0);
+            a_offsets[2] = (0, 60, 0);
+            a_offsets[3] = (0, -60, 0);
+            a_offsets[4] = (45, 45, 0);
+            a_offsets[5] = (-45, 45, 0);
+            a_offsets[6] = (45, -45, 0);
+            a_offsets[7] = (-45, -45, 0);
+
+            player setorigin(anchor.origin + a_offsets[count % 8]);
             player setplayerangles(anchor.angles);
         }
 
