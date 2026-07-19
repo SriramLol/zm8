@@ -1933,6 +1933,20 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
     count = 0;
     players = getplayers();
 
+    // an alive teammate to spawn next to: the fallback spawn structs for
+    // slots 5-8 can drop players from the air - instant fall-damage
+    // laststand, which also interrupts the model attach (downed + invisible)
+    anchor = undefined;
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+        {
+            anchor = players[i];
+            break;
+        }
+    }
+
     for (i = 0; i < players.size; i++)
     {
         player = players[i];
@@ -1956,6 +1970,14 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
 
         zm8_announce("^2zm8: spawning in " + player.name);
         player scripts\zm\_zm::spectator_respawn_player();
+
+        // put them on solid ground next to a teammate instead of wherever
+        // the fallback spawn struct points
+        if (isdefined(anchor) && isdefined(player) && anchor != player)
+        {
+            player setorigin(anchor.origin);
+            player setplayerangles(anchor.angles);
+        }
 
         // the forced respawn path skips the map's character/model assignment
         // (visible as invisible bodies on force-spawned bots). Every map

@@ -150,15 +150,24 @@ local function guardListingWidget(className)
 	end)
 end
 
+-- console diagnostics: the boiii client routes lua print() to its console,
+-- so every stage reports what it found - grep the console for "zm8lua"
+local function dbg(msg)
+	pcall(function() print("zm8lua: " .. msg) end)
+end
+
 pcall(function()
-	-- make sure the widget classes exist before we wrap them. LUI module
-	-- names are CASE-SENSITIVE and the shipped path uses mixed case - the
-	-- original lowercase require failed silently and left the guard dead.
+	dbg("ui script loaded, in-game=" .. tostring(Engine.IsInGame and Engine.IsInGame() or false))
+
+	-- make sure the widget classes exist before we wrap them (both casings;
+	-- module names may be registered either way across client builds)
 	pcall(function() require("ui.uieditor.widgets.HUD.ZM_Score.ZMScr_ListingLg") end)
 	pcall(function() require("ui.uieditor.widgets.HUD.ZM_Score.ZMScr_ListingSm") end)
-	-- tolerate either casing across client builds
 	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr_listinglg") end)
 	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr_listingsm") end)
+
+	dbg("after require: ListingLg=" .. tostring(CoD.ZMScr_ListingLg ~= nil)
+		.. " ListingSm=" .. tostring(CoD.ZMScr_ListingSm ~= nil))
 
 	guardListingWidget("ZMScr_ListingLg")
 	guardListingWidget("ZMScr_ListingSm")
@@ -232,19 +241,145 @@ pcall(function()
 	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr") end)
 	pcall(addExtraScoreRows)
 
-	-- if the classes still are not defined in this UI VM yet, retry once the
-	-- scoreboard menu actually opens: hook the menu factory table lazily via
-	-- a metatable-free poll driven by LUI's own timer if available
-	if (not CoD.ZMScr_ListingLg) and LUI and LUI.UITimer and LUI.roots then
+	dbg("after ZMScr require: ZMScr=" .. tostring(CoD.ZMScr ~= nil)
+		.. " ctorWrapped=" .. tostring(CoD.ZMScr ~= nil and CoD.ZMScr.zm8_extra_rows == true))
+
+	-- ------------------------------------------------------------------
+	-- Live-instance injection: if the HUD widget was ALREADY constructed
+	-- before this script ran (observed in-game: constructor wrap had no
+	-- effect), find the live ZMScr element in the UI trees by its id and
+	-- add the four extra rows to it directly.
+	local function findInstances(node, id, depth, results)
+		if not node or depth > 14 or #results >= 4 then
+			return
+		end
+
+		if node.id == id then
+			table.insert(results, node)
+		end
+
+		local child = nil
+		pcall(function() child = node:getFirstChild() end)
+
+		while child do
+			findInstances(child, id, depth + 1, results)
+			local nextChild = nil
+			pcall(function() nextChild = child:getNextSibling() end)
+			child = nextChild
+		end
+	end
+
+	local function findMenuFor(element)
+		local node = element
+		local hops = 0
+
+		while node and hops < 14 do
+			if type(node.updateElementState) == "function" then
+				return node
+			end
+
+			local parent = nil
+			pcall(function() parent = node:getParent() end)
+			node = parent
+			hops = hops + 1
+		end
+
+		return nil
+	end
+
+	local function injectRowsIntoInstance(instance)
+		if instance.zm8_rows_added then
+			return true
+		end
+
+		if not CoD.ZMScr_ListingSm then
+			dbg("inject: ZMScr_ListingSm class missing")
+			return false
+		end
+
+		local menu = findMenuFor(instance)
+
+		if not menu then
+			dbg("inject: no menu found above ZMScr instance")
+			return false
+		end
+
+		local controller = menu.m_ownerController
+			or instance.m_ownerController
+			or (LUI.roots and LUI.roots.UIRoot0 and LUI.roots.UIRoot0.m_ownerController)
+
+		if controller == nil then
+			dbg("inject: no controller found; trying nil")
+		end
+
+		local ok = pcall(function()
+			for slot = 4, 7 do
+				local listing = CoD.ZMScr_ListingSm.new(menu, controller)
+				local top = 0 - 26.12 * (slot - 3)
+				listing:setLeftRight(true, false, 16.28, 101.28)
+				listing:setTopBottom(true, false, top, top + 35)
+				listing:subscribeToGlobalModel(controller, "ZMPlayerList", tostring(slot), function(model)
+					pcall(function() listing:setModel(model, controller) end)
+				end)
+				instance:addElement(listing)
+				instance["Listing" .. (slot + 1)] = listing
+			end
+		end)
+
+		if ok then
+			instance.zm8_rows_added = true
+			dbg("inject: added rows 5-8 to live ZMScr instance")
+		else
+			dbg("inject: row construction failed")
+		end
+
+		return ok
+	end
+
+	local function tryInjectLive()
+		if not (LUI and LUI.roots) then
+			return false
+		end
+
+		local injected = false
+
+		for _, rootName in ipairs({ "UIRoot0", "UIRootFull", "UIRoot1" }) do
+			local root = LUI.roots[rootName]
+
+			if root then
+				local found = {}
+				pcall(function() findInstances(root, "ZMScr", 0, found) end)
+
+				if #found > 0 then
+					dbg("found " .. #found .. " ZMScr instance(s) under " .. rootName)
+				end
+
+				for i = 1, #found do
+					if injectRowsIntoInstance(found[i]) then
+						injected = true
+					end
+				end
+			end
+		end
+
+		return injected
+	end
+
+	pcall(tryInjectLive)
+
+	-- keep retrying: the HUD builds when a map loads, which can be after
+	-- this script runs. Also re-attempt the class wraps for late VMs.
+	if LUI and LUI.UITimer and LUI.roots then
 		pcall(function()
 			local attempts = 0
-			local root = LUI.roots.UIRoot0
+			local root = LUI.roots.UIRoot0 or LUI.roots.UIRootFull
 
 			if not root then
+				dbg("poller: no UI root available")
 				return
 			end
 
-			local poller = LUI.UITimer.new(500, "zm8_scoreguard_poll")
+			local poller = LUI.UITimer.new(1000, "zm8_scoreguard_poll")
 			root:addElement(poller)
 			root:registerEventHandler("zm8_scoreguard_poll", function(element, event)
 				attempts = attempts + 1
@@ -258,10 +393,17 @@ pcall(function()
 					pcall(addExtraScoreRows)
 				end
 
-				if (CoD.ZMScr_ListingLg and CoD.ZMScr) or attempts > 120 then
+				local done = false
+				pcall(function() done = tryInjectLive() end)
+
+				if done or attempts > 300 then
+					dbg("poller finished, attempts=" .. attempts .. " injected=" .. tostring(done))
 					poller:close()
 				end
 			end)
+			dbg("poller installed")
 		end)
+	else
+		dbg("poller unavailable (no LUI.UITimer/roots)")
 	end
 end)
