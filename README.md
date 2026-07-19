@@ -42,14 +42,27 @@ Run `zm8-gum-picker.bat` → pick up to 5 gums (type to filter, `per` → Perkah
 
 ## Console commands (host, `~`)
 
+### Command categories
+
+- **5–8-player compatibility** means the command only releases a stock all-player gate that is impossible or unsafe above four players. Use it only after the team legitimately reaches that gate. These commands do not grant free equipment or skip the rest of the quest.
+- **Testing cheat** means the command grants equipment, power or quest progress without completing the normal objective. Cheats are optional testing tools; they are not required for normal 5–8-player play.
+- **Host utility** means player/session management rather than an Easter-egg bypass. `zm8_spawn` can still act as a cheat when used to revive a bled-out player early.
+
+The only manual commands currently classified as strict 5–8-player compatibility bypasses are:
+
+- `zm8_de_bossfight` — releases Der Eisendrache's four-Ragnarok-pad gate for a 5–8-player team already at the boss entrance.
+- `zm8_gk_arena` — releases Gorod Krovi's all-connected-players sewer gate if its automatic recovery fails after all active players enter.
+
+**Every equipment-grant, door/power setup, generator activation, KOTH completion and quest-skip command is a testing cheat.** The core 8-player cap and passive map fixes are automatic and require no command.
+
 | Command | Effect |
 |---|---|
-| `zm8_allperks` | toggle permanent all-perks for everyone (default: off) |
-| `zm8_allperks 1` / `0` | explicitly on / off |
-| `zm8_spawn` | spawn in everyone waiting in spectate right now (mid-round joiners AND bled-out players — an early revive) |
-| `zm8_autospawn` | toggle auto-spawn: mid-round joiners spawn in within ~3s instead of waiting for the next round (bled-out players still wait, so dying keeps its penalty). Default: on |
-| `zm8_autospawn 1` / `0` | explicitly on / off |
-| `zm8_gum <name>` | Cheat: give the host any GobbleGum instantly, e.g. `zm8_gum shopping free`. Names as in `zm8/available_gums.txt` |
+| `zm8_allperks` | **Testing cheat:** toggle permanent all-perks for everyone (default: off) |
+| `zm8_allperks 1` / `0` | **Testing cheat:** explicitly enable / disable permanent all-perks |
+| `zm8_spawn` | **Host utility:** spawn everyone waiting in spectate right now (mid-round joiners and bled-out players). Using it on the latter is an early-revive cheat |
+| `zm8_autospawn` | **Host utility:** toggle auto-spawn for mid-round joiners within ~3s; bled-out players remain excluded. Default: on |
+| `zm8_autospawn 1` / `0` | **Host utility:** explicitly enable / disable joiner auto-spawn |
+| `zm8_gum <name>` | **Testing cheat:** give the host any GobbleGum instantly, e.g. `zm8_gum shopping free`. Names as in `zm8/available_gums.txt` |
 
 Toggles reset to their defaults every new game.
 
@@ -57,22 +70,28 @@ Toggles reset to their defaults every new game.
 
 Map-specific commands carry a map prefix and no-op on other maps. More maps to come.
 
+Automatic compatibility fix: upgraded-bow pedestals remain reusable so players 5–8 can take duplicate upgraded bows. No command is required for this; each player may hold only one upgraded bow at a time.
+
 | Command | Effect |
 |---|---|
-| `zm8_de_bossfight` | force-start the final boss fight. The stock start ritual (everyone plants Ragnarok DG-4s on the 4 pads at once) can never complete with 5+ players connected, because the game demands one pad per connected player but the map only has 4. Get everyone to the undercroft first, then run this |
-| `zm8_de_eecomplete` | testing cheat: skip the entire main quest straight to boss-ready. The pyramid rises in the undercroft and its canister step is auto-pressed; once "boss gate arming" appears, `zm8_de_bossfight` will work. Skipped quest flags stay unset, so the ending cinematic may not play after the boss dies |
-| `zm8_de_bows [element]` | cheat: give every living player an upgraded bow with full ammo. Element: `fire`, `void`, `storm` or `wolf`; no argument = a mix of all four across the team |
-| `zm8_de_ragnarok` | cheat: give every living player the Ragnarok DG-4 (needed to plant on the boss pads) |
+| `zm8_de_bossfight` | **5–8-player compatibility:** release the final boss-pad gate after the team legitimately reaches it. Stock demands one simultaneous Ragnarok plant per connected player but provides only four pads, so 5+ players cannot satisfy it. Gather everyone in the undercroft first |
+| `zm8_de_test` | **Testing cheat:** force-purchase all buyable doors/debris, turn on power and give current players damage immunity. `zm8_de_test 0` removes immunity; doors and power remain |
+| `zm8_de_eecomplete` | **Testing cheat:** skip the entire main quest straight to boss-ready and auto-press the pyramid canister. Skipped quest state may prevent the ending cinematic |
+| `zm8_de_bows [element]` | **Testing cheat:** give every living player an upgraded bow with full ammo. Element: `fire`, `void`, `storm` or `wolf`; no argument mixes all four |
+| `zm8_de_lightningready` | **Testing cheat:** fill all three dragons and drive the stock Lightning Bow quest until the upgraded bow appears on its altar |
+| `zm8_de_ragnarok` | **Testing cheat:** give every living player the Ragnarok DG-4 |
 
 ### Origins commands (`zm8_origins_*`)
 
-Good news from the code audit: unlike Der Eisendrache, the Origins quest has no hard player-count block — every step gate counts staffs/objects (always 4), not players. The one co-op catch: step 6 (One-Inch Punch) requires **every connected player** — spectators included — to earn the upgraded fist.
+Good news from the code audit: unlike Der Eisendrache, the Origins quest has no hard player-count block — every step gate counts staffs/objects (always 4), not players. The one co-op catch: step 6 (One-Inch Punch) requires **every connected player** — spectators included — to earn the upgraded fist. Duplicate staff pickups are enabled automatically for players 5–8. Therefore, **Origins has no command classified as a strict 5–8-player compatibility bypass**.
 
 | Command | Effect |
 |---|---|
-| `zm8_origins_eenext` | testing cheat: force-complete the current main quest step through the game's own sidequest API. Run it repeatedly to walk the quest forward. Before the quest starts it skips the all-staffs-crafted gate (all 6 generators must still be captured). Skipped steps may leave physical quest props missing, so later steps can look odd |
-| `zm8_origins_punch` | cheat: give every living player the upgraded One-Inch Punch and satisfy the step-6 "everyone upgraded" gate |
-| `zm8_origins_staffs [element]` | cheat: give every living player an upgraded staff with full ammo. Element: `fire`, `ice`, `wind` or `lightning`; no argument = a mix across the team. With 5+ players some staffs are duplicates — the per-element holder UI may look confused, combat works fine |
+| `zm8_origins_generators` | **Testing cheat:** activate and power all six generators without capturing them normally |
+| `zm8_origins_eecomplete` | **Testing cheat:** activate the generators and force every main-quest gate through the final portal step |
+| `zm8_origins_eenext` | **Testing cheat:** force-complete the current main-quest stage. Repeated use walks the quest forward and may leave skipped physical props in an unusual state |
+| `zm8_origins_punch` | **Testing cheat:** give every living player the upgraded One-Inch Punch and satisfy the all-connected-players step-6 check |
+| `zm8_origins_staffs [element]` | **Testing cheat:** give every living player an upgraded staff with full ammo. Element: `fire`, `ice`, `wind` or `lightning`; no argument mixes elements |
 
 ### Gorod Krovi commands (`zm8_gk_*`) and automatic fixes
 
@@ -86,11 +105,11 @@ Two easter-egg gates count **every connected player** (spectators included) and 
 
 | Command | Effect |
 |---|---|
-| `zm8_gk_eecomplete` | testing cheat: force the "Love and War" quest flags in order up to the boss phase. Wait for Sophia to leave the computer, then everyone rides the sewer hatch into the arena. Skipped physical steps stay skipped, so the ending cinematic may not play |
-| `zm8_gk_arena` | unstick the boss-arena entry gate manually (it normally auto-credits spectators). Anyone not in the arena when it fires misses the transport |
-| `zm8_gk_koth` | credit **all** players for the network-console defense step |
-| `zm8_gk_weapons [kind]` | cheat: give every living player a wonder weapon — `fire` (GKZ-45 Mk3, default), `strike` (Dragon Strike), `gauntlet` (Gauntlet of Siegfried), `shield` (dragon shield; experimental) |
-| `zm8_gk_gauntlet` | skip the Gauntlet of Siegfried incubation quest and hand the gauntlet out |
+| `zm8_gk_arena` | **5–8-player compatibility:** manually release the sewer/boss-arena all-connected-players gate if automatic recovery fails. Use only after every active participant has taken the sewer; stragglers miss the transport |
+| `zm8_gk_eecomplete` | **Testing cheat:** force the "Love and War" quest flags through the boss phase. Physical objectives are skipped and the ending sequence may not behave normally |
+| `zm8_gk_koth` | **Testing cheat:** credit every connected player for the network-console defense. This completes the objective rather than merely increasing its player capacity |
+| `zm8_gk_weapons [kind]` | **Testing cheat:** give every living player a wonder weapon — `fire` (GKZ-45 Mk3), `strike` (Dragon Strike), `gauntlet` or experimental `shield` |
+| `zm8_gk_gauntlet` | **Testing cheat:** skip the Gauntlet of Siegfried incubation quest and give out the gauntlet |
 
 ### Shadows of Evil commands (`zm8_soe_*`) and automatic fixes
 
@@ -101,11 +120,13 @@ Two things are fixed **automatically** — no command needed:
 
 Rituals, relics and pod teleporters are per-character and tolerate duplicates sharing progress (both index-twins can interact with the same stations).
 
+Shadows of Evil has no manual command classified as a strict 5–8-player compatibility bypass; its player-count fixes are automatic.
+
 | Command | Effect |
 |---|---|
-| `zm8_soe_eecomplete` | testing cheat: force the ritual flags (`ritual_all_characters_complete`, `ritual_pap_complete`) and hand out upgraded swords — the keeper/boss phase then starts on its own |
-| `zm8_soe_swords [1\|2]` | cheat: give every living player their character's Apothicon sword (`1` = base, `2` = upgraded, default upgraded) |
-| `zm8_soe_servant` | cheat: give every living player the upgraded Apothicon Servant (variant matches their character) |
+| `zm8_soe_eecomplete` | **Testing cheat:** force the ritual flags (`ritual_all_characters_complete`, `ritual_pap_complete`) and hand out upgraded swords — the keeper/boss phase then starts on its own |
+| `zm8_soe_swords [1\|2]` | **Testing cheat:** give every living player their character's Apothicon sword (`1` = base, `2` = upgraded, default upgraded) |
+| `zm8_soe_servant` | **Testing cheat:** give every living player the upgraded Apothicon Servant (variant matches their character) |
 
 ## Known limitations
 

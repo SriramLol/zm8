@@ -79,19 +79,39 @@ per line, friendly names like "in plain sight" work.
 
 HOST CONSOLE COMMANDS (~ key)
 -----------------------------
-zm8_allperks        toggle permanent all-perks for everyone
+COMMAND CATEGORIES
+  [COMPATIBILITY] Only releases a stock all-player gate that is
+                  impossible or unsafe above 4 players. Use only
+                  after legitimately reaching that gate.
+  [TESTING CHEAT] Grants equipment, power, doors, or quest progress
+                  without completing the normal objective.
+  [HOST UTILITY]  Manages joining/spawning, not an EE limit.
+
+The ONLY strict 5-8 player compatibility commands are:
+  zm8_de_bossfight  - DE's 4-pad boss gate
+  zm8_gk_arena      - GK's all-player sewer gate (manual fallback)
+All item grants, quest skips, generator/KOTH completion, and test
+setup commands are cheats. Most 5-8 player fixes run automatically.
+
+[TESTING CHEAT] zm8_allperks
+                    toggle permanent all-perks for everyone
                     (default: OFF each game)
-zm8_allperks 1 / 0  explicitly on / off
-zm8_spawn           spawn in everyone waiting in spectate right now
+[TESTING CHEAT] zm8_allperks 1 / 0
+                    explicitly on / off
+[HOST UTILITY] zm8_spawn
+                    spawn in everyone waiting in spectate right now
                     (mid-round joiners AND bled-out players - works
                     as an early revive for the dead)
-zm8_autospawn       toggle auto-spawn: mid-round joiners spawn in
+[HOST UTILITY] zm8_autospawn
+                    toggle auto-spawn: mid-round joiners spawn in
                     within ~3s instead of waiting for next round.
                     Bled-out players still wait (death keeps its
                     penalty) - use zm8_spawn to bring them back early.
                     (default: ON each game)
-zm8_autospawn 1 / 0 explicitly on / off
-zm8_gum <name>      Cheat: give the host any GobbleGum instantly,
+[HOST UTILITY] zm8_autospawn 1 / 0
+                    explicitly on / off
+[TESTING CHEAT] zm8_gum <name>
+                    give the host any GobbleGum instantly,
                     e.g. zm8_gum shopping free. Names as in
                     zm8/available_gums.txt.
 Toggles reset to these defaults every new game. Turning allperks off
@@ -101,23 +121,36 @@ downs.
 DER EISENDRACHE COMMANDS (zm8_de_*)
 -----------------------------------
 Map-specific commands carry a map prefix and no-op on other maps.
+Upgraded-bow pedestals automatically stay reusable for players 5-8;
+no command is required for duplicate bow pickups.
 
-zm8_de_bossfight    force-start the final boss fight. The stock
+[COMPATIBILITY] zm8_de_bossfight
+                    release the final boss-pad gate. The stock
                     ritual (everyone plants their DG-4 on the 4 pads
                     at once) can never finish with 5+ players
                     connected - the game wants one pad per connected
                     player but the map only has 4. Get everyone into
                     the undercroft first, then run this.
-zm8_de_eecomplete   TESTING CHEAT: skip the entire main quest
+[TESTING CHEAT] zm8_de_test
+                    force-purchase every door/debris blocker, turn
+                    on power, and enable damage immunity. Use
+                    zm8_de_test 0 to remove immunity only.
+[TESTING CHEAT] zm8_de_eecomplete
+                    skip the entire main quest
                     straight to boss-ready. The pyramid rises in the
                     undercroft and its canister step is auto-pressed;
                     once "boss gate arming" shows, zm8_de_bossfight
                     will work. Skipped quest flags stay unset, so the
                     ending cinematic may not play after the boss dies.
-zm8_de_bows [elem]  cheat: give every living player an upgraded bow
+[TESTING CHEAT] zm8_de_bows [elem]
+                    give every living player an upgraded bow
                     with full ammo. Element: fire, void, storm or
                     wolf; no arg = mix of all four.
-zm8_de_ragnarok     cheat: give every living player the Ragnarok
+[TESTING CHEAT] zm8_de_lightningready
+                    fill all 3 dragons and drive the stock Lightning
+                    Bow quest until the upgrade is on its altar.
+[TESTING CHEAT] zm8_de_ragnarok
+                    give every living player the Ragnarok
                     DG-4 (needed for the boss pads).
 
 ORIGINS COMMANDS (zm8_origins_*)
@@ -125,17 +158,26 @@ ORIGINS COMMANDS (zm8_origins_*)
 No hard player-count block in the Origins quest (gates count staffs,
 not players), but step 6 (One-Inch Punch) requires EVERY connected
 player - spectators included - to earn the upgraded fist.
+Duplicate staff pickups are automatic. Origins has NO command that
+is classified as a strict 5-8 player compatibility bypass.
 
-zm8_origins_eenext  TESTING CHEAT: force-complete the current main
+[TESTING CHEAT] zm8_origins_generators
+                    activate and power all 6 generators.
+[TESTING CHEAT] zm8_origins_eecomplete
+                    activate generators and force all main-quest
+                    gates through the final portal step.
+[TESTING CHEAT] zm8_origins_eenext
+                    force-complete the current main
                     quest step via the game's own sidequest API. Run
                     repeatedly to walk the quest forward. Before the
                     quest starts it skips the all-staffs-crafted
                     gate (all 6 generators must still be captured).
                     Skipped steps may leave quest props missing.
-zm8_origins_punch   cheat: give every living player the upgraded
+[TESTING CHEAT] zm8_origins_punch
+                    give every living player the upgraded
                     One-Inch Punch and satisfy the step-6 gate.
-zm8_origins_staffs [element]
-                    cheat: give every living player an upgraded
+[TESTING CHEAT] zm8_origins_staffs [element]
+                    give every living player an upgraded
                     staff with full ammo. Element: fire, ice, wind
                     or lightning; no arg = mix. With 5+ players some
                     staffs are duplicates - holder UI may confuse,
@@ -157,22 +199,27 @@ Two easter-egg gates count EVERY connected player (spectators too)
 and are auto-credited for players not in play: the network-console
 (KOTH) defense and the sewer ride into the boss arena.
 
-zm8_gk_eecomplete   TESTING CHEAT: force the "Love and War" quest
+[COMPATIBILITY] zm8_gk_arena
+                    manually release the all-connected-player sewer
+                    gate if automatic recovery fails. Use only after
+                    every active player rides; stragglers miss it.
+[TESTING CHEAT] zm8_gk_eecomplete
+                    force the "Love and War" quest
                     flags in order up to the boss phase. Wait for
                     Sophia to leave the computer, then everyone
                     rides the sewer hatch into the arena. Skipped
                     steps stay skipped - the ending cinematic may
                     not play.
-zm8_gk_arena        unstick the boss-arena entry gate manually (it
-                    normally auto-credits spectators). Anyone not in
-                    the arena when it fires misses the transport.
-zm8_gk_koth         credit ALL players for the network-console step.
-zm8_gk_weapons [kind]
-                    cheat: give every living player a wonder weapon.
+[TESTING CHEAT] zm8_gk_koth
+                    credit ALL players for the network-console step;
+                    this completes the objective and is a cheat.
+[TESTING CHEAT] zm8_gk_weapons [kind]
+                    give every living player a wonder weapon.
                     fire = GKZ-45 Mk3 (default), strike = Dragon
                     Strike, gauntlet = Gauntlet of Siegfried,
                     shield = dragon shield (experimental).
-zm8_gk_gauntlet     skip the gauntlet incubation quest + give it.
+[TESTING CHEAT] zm8_gk_gauntlet
+                    skip the gauntlet incubation quest + give it.
 
 
 SHADOWS OF EVIL COMMANDS (zm8_soe_*) AND AUTOMATIC FIXES
@@ -188,14 +235,18 @@ Fixed automatically (no command needed):
   "character twin" earned it.
 Rituals/relics/teleporters are per-character and tolerate index
 twins sharing progress.
+All Shadows commands are testing cheats; its 5-8 player fixes are
+automatic and require no manual compatibility command.
 
-zm8_soe_eecomplete  TESTING CHEAT: force the ritual flags and hand
+[TESTING CHEAT] zm8_soe_eecomplete
+                    force the ritual flags and hand
                     out upgraded swords - the keeper/boss phase then
                     starts on its own.
-zm8_soe_swords [1|2]
-                    cheat: give every living player their character's
+[TESTING CHEAT] zm8_soe_swords [1|2]
+                    give every living player their character's
                     Apothicon sword (1 = base, 2 = upgraded/default).
-zm8_soe_servant     cheat: give every living player the upgraded
+[TESTING CHEAT] zm8_soe_servant
+                    give every living player the upgraded
                     Apothicon Servant (variant matches character).
 
 
