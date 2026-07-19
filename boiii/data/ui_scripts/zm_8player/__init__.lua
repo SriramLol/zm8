@@ -68,3 +68,94 @@ end)
 if isZombiesMode() then
 	forceDvars()
 end
+
+-- ---------------------------------------------------------------------------
+-- Scoreboard guard for players 5-8
+--
+-- The zombies scoreboard row widget (ZMScr_ListingLg/Sm) builds one row per
+-- player from a per-player data model. For slots 5-8 some model fields are
+-- never registered, so GetModelValue returns false; a stripped scaling/color
+-- helper then does "boolean * number" and throws a full-screen LUI error the
+-- moment the scoreboard datasource refreshes.
+--
+-- The compiled widget is baked into the fastfiles (not readable here), so
+-- instead of reconstructing it we make its model callbacks non-fatal: while
+-- the widget is being constructed we swap in a linkToElementModel that wraps
+-- every registered callback in pcall. A slot-5-8 row that hits the bad math
+-- just skips that visual update instead of crashing the UI. Rows for players
+-- 1-4 are unaffected. Everything is pcall-guarded so a failure here degrades
+-- to the stock behaviour rather than an error screen.
+
+local function makeGuardedLink(originalLink)
+	return function(...)
+		local n = select("#", ...)
+		local args = { ... }
+
+		for i = 1, n do
+			if type(args[i]) == "function" then
+				local callback = args[i]
+				args[i] = function(...)
+					-- swallow errors from missing slot-5-8 model values
+					pcall(callback, ...)
+				end
+			end
+		end
+
+		return originalLink(unpack(args, 1, n))
+	end
+end
+
+local function guardListingWidget(className)
+	pcall(function()
+		local widgetClass = CoD[className]
+
+		if not widgetClass or type(widgetClass.new) ~= "function" then
+			return
+		end
+
+		local originalNew = widgetClass.new
+
+		local guardedNew = function(...)
+			local savedLink = LUI.UIElement.linkToElementModel
+			local restored = false
+
+			-- only guard callbacks registered during this widget's build
+			pcall(function()
+				LUI.UIElement.linkToElementModel = makeGuardedLink(savedLink)
+			end)
+
+			local results = { pcall(originalNew, ...) }
+
+			pcall(function()
+				LUI.UIElement.linkToElementModel = savedLink
+				restored = true
+			end)
+
+			if not restored then
+				LUI.UIElement.linkToElementModel = savedLink
+			end
+
+			if results[1] then
+				return unpack(results, 2)
+			end
+
+			-- construction itself failed - degrade to no row rather than a
+			-- crash; the parent list tolerates a nil child
+			return nil
+		end
+
+		if not pcall(function() widgetClass.new = guardedNew end) then
+			pcall(function() rawset(widgetClass, "new", guardedNew) end)
+		end
+	end)
+end
+
+pcall(function()
+	-- make sure the widget classes exist before we wrap them (the scoreboard
+	-- modules may not be required yet at frontend init)
+	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr_listinglg") end)
+	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr_listingsm") end)
+
+	guardListingWidget("ZMScr_ListingLg")
+	guardListingWidget("ZMScr_ListingSm")
+end)
