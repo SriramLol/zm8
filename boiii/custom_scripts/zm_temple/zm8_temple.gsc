@@ -15,12 +15,190 @@
 #using scripts\shared\array_shared;
 #using scripts\shared\flag_shared;
 #using scripts\shared\util_shared;
+#using scripts\zm\_zm_sidequests;
 #using scripts\zm\_zm_utility;
 #using scripts\zm\zm_temple_pack_a_punch;
 
 autoexec function zm8_temple_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_temple_test_command;
     println("zm8: Shangri-La 5-8 player compatibility detour loaded");
+}
+
+function zm8_temple_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_temple_test_stage_name(raw)
+{
+    names = array("BaG", "bttp", "bttp2", "DgCWf", "LGS", "OaFC", "PtT", "StD");
+
+    for (i = 0; i < names.size; i++)
+    {
+        if (tolower(names[i]) == tolower(raw))
+        {
+            return names[i];
+        }
+    }
+
+    return undefined;
+}
+
+function zm8_temple_test_complete_current()
+{
+    if (!isdefined(level._last_stage_started))
+    {
+        return false;
+    }
+
+    scripts\zm\_zm_sidequests::stage_completed("sq", level._last_stage_started);
+    return true;
+}
+
+function zm8_temple_test_to_stage(target, complete_all)
+{
+    level scripts\shared\flag_shared::set("power_on");
+    deadline = gettime() + 30000;
+
+    while (!isdefined(level._last_stage_started) && gettime() < deadline)
+    {
+        wait 0.25;
+    }
+
+    for (step = 0; step < 12; step++)
+    {
+        if (!isdefined(level._last_stage_started))
+        {
+            wait 0.5;
+            continue;
+        }
+
+        if (!complete_all && level._last_stage_started == target)
+        {
+            zm8_temple_test_say("^2zm8: Shangri-La test stage ready: " + target);
+            return;
+        }
+
+        current = level._last_stage_started;
+        scripts\zm\_zm_sidequests::stage_completed("sq", current);
+        wait 1;
+
+        if (isdefined(level._zombie_sidequests) && isdefined(level._zombie_sidequests["sq"]) &&
+            isdefined(level._zombie_sidequests["sq"].sidequest_completed) && level._zombie_sidequests["sq"].sidequest_completed)
+        {
+            zm8_temple_test_say("^2zm8: Shangri-La sidequest completed through the stock stage API");
+            return;
+        }
+    }
+
+    zm8_temple_test_say("^1zm8: requested Shangri-La stage did not become active");
+}
+
+function zm8_temple_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_temple_test_say("^3zm8_test: pap | next | stage <BaG|bttp|bttp2|DgCWf|LGS|OaFC|PtT|StD> | ee | shrinkray");
+        return;
+    }
+
+    if (scenario == "pap")
+    {
+        level scripts\shared\flag_shared::set("power_on");
+        triggers = [];
+
+        for (i = 0; i < 4; i++)
+        {
+            triggers[i] = getent("pap_blocker_trigger" + (i + 1), "targetname");
+
+            if (!isdefined(triggers[i]))
+            {
+                zm8_temple_test_say("^1zm8: Shangri-La Pack-a-Punch plates are not initialized yet");
+                return;
+            }
+        }
+
+        players = getplayers();
+        participant = 0;
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (!isdefined(players[i]) || !isalive(players[i]) || players[i].sessionstate != "playing")
+            {
+                continue;
+            }
+
+            slot = participant;
+
+            if (slot > 3)
+            {
+                slot = 3;
+            }
+
+            players[i] setorigin(triggers[slot].origin + (0, 0, 8));
+            participant++;
+        }
+
+        zm8_temple_test_say("^2zm8: living players placed across the required Pack-a-Punch plates");
+        return;
+    }
+
+    if (scenario == "next")
+    {
+        if (zm8_temple_test_complete_current())
+        {
+            zm8_temple_test_say("^2zm8: completed current Shangri-La stage through the stock API");
+        }
+        else
+        {
+            zm8_temple_test_say("^1zm8: no Shangri-La sidequest stage is active yet");
+        }
+
+        return;
+    }
+
+    if (scenario == "stage")
+    {
+        if (!isdefined(args) || args.size < 2)
+        {
+            zm8_temple_test_say("^3zm8: usage: zm8_test stage <stage name>");
+            return;
+        }
+
+        target = zm8_temple_test_stage_name(args[1]);
+
+        if (!isdefined(target))
+        {
+            zm8_temple_test_say("^1zm8: unknown Shangri-La stage name");
+            return;
+        }
+
+        level thread zm8_temple_test_to_stage(target, false);
+        return;
+    }
+
+    if (scenario == "ee")
+    {
+        level thread zm8_temple_test_to_stage(undefined, true);
+        return;
+    }
+
+    zm8_temple_test_say("^1zm8: unknown Shangri-La scenario - run zm8_test help");
 }
 
 // the stock script's power() helper is file-local flavored; keep our own

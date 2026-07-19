@@ -11,7 +11,64 @@
 
 autoexec function zm8_factory_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_factory_test_command;
     println("zm8: The Giant 5-8 player teleporter compatibility loaded");
+}
+
+function zm8_factory_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_factory_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_factory_test_say("^3zm8_test: teleporter");
+        return;
+    }
+
+    if (scenario != "teleporter")
+    {
+        zm8_factory_test_say("^1zm8: unknown Giant scenario - run zm8_test help");
+        return;
+    }
+
+    pad = getent("trigger_teleport_pad_0", "targetname");
+
+    if (!isdefined(pad))
+    {
+        zm8_factory_test_say("^1zm8: Giant mainframe teleporter pad was not found");
+        return;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+        {
+            players[i] setorigin(pad.origin + ((i % 4) * 10, (i / 4) * 10, 8));
+        }
+    }
+
+    wait 0.25;
+    pad thread scripts\zm\zm_factory_teleporter::teleport_players();
+    zm8_factory_test_say("^2zm8: invoked the real Giant mainframe teleport for every pad occupant");
 }
 
 function zm8_factory_extra_offset(index, angles)

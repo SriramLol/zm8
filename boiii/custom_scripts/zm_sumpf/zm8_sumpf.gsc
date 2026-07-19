@@ -17,7 +17,88 @@
 
 autoexec function zm8_sumpf_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_sumpf_test_command;
     println("zm8: Shi No Numa 5-8 player spawn/zipline compatibility loaded");
+}
+
+function zm8_sumpf_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_sumpf_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_sumpf_test_say("^3zm8_test: spawn | zipline");
+        return;
+    }
+
+    if (scenario == "spawn")
+    {
+        level thread scripts\zm\zm_sumpf::sumpf_player_spawn_placement();
+        zm8_sumpf_test_say("^2zm8: reran the real Shi No Numa initial placement routine");
+        return;
+    }
+
+    if (scenario == "zipline")
+    {
+        triggers = getentarray("zipline_buy_trigger", "targetname");
+        trigger = undefined;
+
+        for (i = 0; i < triggers.size; i++)
+        {
+            if (isdefined(triggers[i].script_noteworthy) && triggers[i].script_noteworthy == "nonstatic")
+            {
+                trigger = triggers[i];
+                break;
+            }
+        }
+
+        if (!isdefined(trigger) || !isdefined(trigger.volume))
+        {
+            zm8_sumpf_test_say("^1zm8: Shi No Numa zipline is not initialized yet");
+            return;
+        }
+
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(trigger.volume.origin + ((i % 4) * 10, (i / 4) * 10, 8));
+            }
+        }
+
+        wait 0.25;
+        purchaser = undefined;
+
+        if (players.size > 0)
+        {
+            purchaser = players[0];
+        }
+
+        trigger thread scripts\zm\zm_sumpf_zipline::activatezip(purchaser);
+        zm8_sumpf_test_say("^2zm8: invoked the real zipline with the host as purchaser and all clients on its volume");
+        return;
+    }
+
+    zm8_sumpf_test_say("^1zm8: unknown Shi No Numa scenario - run zm8_test help");
 }
 
 // Stock indexes one authored initial_spawn_points struct per connected

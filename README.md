@@ -32,6 +32,7 @@ EZZ v1.1.7 restored its legacy custom-builtin dispatcher. zm8 uses the v1.1.7 un
    <BO3 folder>\boiii\custom_scripts\zm_factory\zm8_factory.gsc
    <BO3 folder>\boiii\custom_scripts\zm_genesis\zm8_genesis.gsc
    <BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_moon\zm8_moon.gsc
    <BO3 folder>\boiii\custom_scripts\zm_stalingrad\zm8_stalingrad.gsc
    <BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
    <BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
@@ -82,9 +83,31 @@ No manual command is required for normal 5–8-player quest completion. One reco
 
 Toggles reset to their defaults every new game.
 
+### Command-first audit harness (`zm8_test`)
+
+`zm8_test` is a map-aware **testing-cheat dispatcher** added for 5-8-player runtime auditing. It never runs automatically. Start an UNRANKED map, run `spawnbot 7`, `zm8_godmode 1`, then `zm8_test help`. Every compatibility-sensitive late step now has an accelerated setup, so testers do not have to complete an Easter egg solo with bots.
+
+| Map | Scenarios shown by `zm8_test help` |
+|---|---|
+| Der Eisendrache | `bowteam`, `bows [element]`, `bossready`, `boss` |
+| Origins | `staffs [element]`, `punchprep`, `punchfinish`, `portal` |
+| Gorod Krovi | `dragon`, `trials`, `timer <5\|10\|15\|20\|50>`, `postquest`, `koth`, `lockbox`, `lockbox2`, `sewer`, `boss` |
+| Shadows of Evil | `swords [0\|1\|2]`, `swordtwin`, `keepers`, `shadowman`, `tram`, `ending` |
+| Zetsubou No Shima | `challengesprep`, `challengesfinish`, `plants`, `masamune`, `zipline`, `pap`, `skull <1-4>`, `skullfinish <1-4>`, `skullroom`, `elevator`, `boss` |
+| Moon | `teleporter`, `hacker`, `next`, `stage <ss1\|osc\|sc\|sc2\|ss2>`, `ee`, `wavegun`, `qed` |
+| Revelations | `quest`, `trials`, `timer <5\|10\|15\|20>`, `oldschool`, `runes`, `arena1`, `arena2`, `thundergun`, `servant` |
+| Shangri-La | `pap`, `next`, `stage <BaG\|bttp\|bttp2\|DgCWf\|LGS\|OaFC\|PtT\|StD>`, `ee`, `shrinkray` |
+| Ascension | `lander`, `pressure`, `pressurefast`, `doll`, `reward` |
+| The Giant | `teleporter` |
+| Shi No Numa | `spawn`, `zipline` |
+| Kino der Toten | `teleporter` |
+| Verruckt / Nacht | no late quest state; use the common spawn/round utilities |
+
+See [MAP_AUDIT_TEST_PLAN.md](MAP_AUDIT_TEST_PLAN.md) for the exact command order, expected result, spectator variants, and the distinction between isolated-path evidence and a complete runtime-verified EE.
+
 ### Der Eisendrache commands (`zm8_de_*`)
 
-Map-specific commands carry a map prefix and no-op on other maps. More maps to come.
+Legacy map-prefixed commands remain available and no-op on other maps. The `zm8_test` dispatcher above is the recommended audit interface.
 
 Automatic compatibility fixes:
 
@@ -169,13 +192,13 @@ Zetsubou contains several stock arrays and physical slots sized only for 1–4 p
 - **Takeo boss waves:** the boss arena's three wave tables end at four players. Teams of 5–8 use four-player pacing.
 - **Boss rescue teleport:** stock has only four landing destinations. Players 5–8 receive nearby offset destinations instead of overlapping their character twins.
 
-These are strictly **5–8-player compatibility fixes**, not cheats: they prevent undefined array reads and slot collisions while leaving the generators, challenges, Skull quest, main Easter egg and boss fight to be completed normally. Zetsubou currently adds no console commands or quest skips.
+These are strictly **5–8-player compatibility fixes**, not cheats: they prevent undefined array reads and slot collisions while leaving normal gameplay intact. Zetsubou's optional `zm8_test` scenarios are separately labeled testing cheats.
 
 ### Moon commands (`zm8_moon_*`)
 
 Best audit result of any map: **Moon has no 5–8-player compatibility gates at all.** The Area 51 teleporter counts only alive non-spectators on both legs, the Richtofen easter egg is proximity/interaction driven, and there are no per-player-count scaling tables. Nothing is fixed because nothing breaks — every Moon command is a testing cheat.
 
-Cosmetic quirks with 5–8 (documented, not fixed): the Pack-a-Punch zombie-distraction POI activates only when every **connected** player stands in the enclosure, so a spectator disables the distraction (PaP itself keeps working); helmet visuals are keyed to character index 0–3, so index twins share them. The hacker is wired through the map's equipment system and has no give command — grab it in the labs normally.
+Cosmetic quirks with 5–8 (documented, not fixed): the Pack-a-Punch zombie-distraction POI activates only when every **connected** player stands in the enclosure, so a spectator disables the distraction (PaP itself keeps working); helmet visuals are keyed to character index 0–3, so index twins share them. The command-only Moon helper can grant the Hacker through the stock equipment API and advance stock sidequest stages for testing; it makes no automatic gameplay change.
 
 | Command | Effect |
 |---|---|
@@ -223,19 +246,19 @@ Three co-op assumptions are repaired automatically by `custom_scripts\zm_cosmodr
 - **Matryoshka-doll VO:** the side egg's response switch only handles player indices 0–3. Players 5–8 now reuse the corresponding modulo-four voice so an undefined sound alias cannot abort the interaction.
 - **Main-quest pressure timer:** every living participant must remain on the real pressure plate for the full stock timer, but waiting spectators are excluded.
 
-These are automatic **5–8-player compatibility fixes**, not cheats. Ascension adds no console commands.
+These are automatic **5–8-player compatibility fixes**, not cheats. Ascension's `zm8_test` scenarios are optional testing-only setup paths.
 
 ### The Giant automatic fix (`zm_factory`)
 
-The mainframe teleporter's stock staging loop only examines players 1–4. `custom_scripts\zm_factory\zm8_factory.gsc` includes every player standing on the pad and safely shares the four physical staging/arrival spots, with a small offset for players 5–8. This is an automatic **5–8-player compatibility fix**, not a cheat. The rest of The Giant has no player-count gates, so there are no `zm8_factory_*` commands.
+The mainframe teleporter's stock staging loop only examines players 1–4. `custom_scripts\zm_factory\zm8_factory.gsc` includes every player standing on the pad and safely shares the four physical staging/arrival spots, with a small offset for players 5–8. This is an automatic **5–8-player compatibility fix**, not a cheat. `zm8_test teleporter` invokes that path directly for testing.
 
 ### Kino der Toten automatic fix (`zm_theater`)
 
-Kino's teleporter has four physical staging and destination spots, but stock code directly indexes that four-entry array with the player number. Player 5 therefore reads past the end and can abort the teleport. `custom_scripts\zm_theater\zm8_theater.gsc` folds players 5–8 onto the four valid slots and gives the second group a nearby offset at both ends. This is an automatic **5–8-player compatibility fix**, not a cheat. Kino has no main quest or player-count gate, so there are no `zm8_theater_*` commands.
+Kino's teleporter has four physical staging and destination spots, but stock code directly indexes that four-entry array with the player number. Player 5 therefore reads past the end and can abort the teleport. `custom_scripts\zm_theater\zm8_theater.gsc` folds players 5–8 onto the four valid slots and gives the second group a nearby offset at both ends. This is an automatic **5–8-player compatibility fix**, not a cheat. `zm8_test teleporter` runs the trip and return directly.
 
 ### Shi No Numa automatic fix (`zm_sumpf`)
 
-Shi No Numa has two automatic fixes in `custom_scripts\zm_sumpf\zm8_sumpf.gsc`: its opening placement directly indexes only four authored spawn structs, so players 5–8 reuse them with nearby offsets; its zipline has four attachment tags, so each trip carries at most four riders and the rest take the next trip. Shi No Numa has no main quest or `zm8_sumpf_*` commands.
+Shi No Numa has two automatic fixes in `custom_scripts\zm_sumpf\zm8_sumpf.gsc`: its opening placement directly indexes only four authored spawn structs, so players 5–8 reuse them with nearby offsets; its zipline has four attachment tags, so each trip carries at most four riders and the rest take the next trip. `zm8_test spawn` and `zm8_test zipline` isolate those paths.
 
 ### Nacht der Untoten
 

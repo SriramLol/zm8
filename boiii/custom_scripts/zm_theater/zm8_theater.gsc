@@ -14,7 +14,81 @@
 
 autoexec function zm8_theater_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_theater_test_command;
     println("zm8: Kino 5-8 player teleporter compatibility loaded");
+}
+
+function zm8_theater_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_theater_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_theater_test_say("^3zm8_test: teleporter");
+        return;
+    }
+
+    if (scenario == "teleporter")
+    {
+        level thread zm8_theater_test_teleporter();
+        return;
+    }
+
+    zm8_theater_test_say("^1zm8: unknown Kino scenario - run zm8_test help");
+}
+
+function zm8_theater_test_teleporter()
+{
+    if (isdefined(level.zm8_theater_test_running) && level.zm8_theater_test_running)
+    {
+        zm8_theater_test_say("^3zm8: Kino teleporter test is already running");
+        return;
+    }
+
+    level.zm8_theater_test_running = true;
+    pad = getent("trigger_teleport_pad_0", "targetname");
+
+    if (!isdefined(pad))
+    {
+        level.zm8_theater_test_running = false;
+        zm8_theater_test_say("^1zm8: Kino teleporter pad was not found");
+        return;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+        {
+            players[i] setorigin(pad.origin + ((i % 4) * 10, (i / 4) * 10, 8));
+        }
+    }
+
+    wait 0.25;
+    teleporting = [];
+    teleporting = pad scripts\zm\zm_theater_teleporter::teleport_players(teleporting, "projroom");
+    zm8_theater_test_say("^2zm8: Kino projection-room arrival complete; automatic return in 15 seconds");
+    wait 15;
+    pad scripts\zm\zm_theater_teleporter::teleport_players(teleporting, "theater");
+    level.zm8_theater_test_running = false;
 }
 
 function zm8_theater_extra_offset(player_index, angles)

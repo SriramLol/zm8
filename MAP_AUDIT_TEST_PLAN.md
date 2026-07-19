@@ -1,126 +1,163 @@
-# zm8 stock-script audit and morning test plan
+# zm8 command-first 5-8 player test plan
 
-Audit basis: the decompiled T7 scripts at `C:\Games\Bo3\.t7-source` were checked for connected/active-player counts, fixed four-entry arrays, entity/character indexing, physical slots, single-owner fields and all-player gates. These changes have parser/emitter validation only. Nothing below is claimed as runtime-tested unless it is the already-confirmed Der Eisendrache two-player bow-team feature.
+This is the runtime test plan for the stock-script audit. All new `zm8_test` scenarios are explicit **testing cheats**: they place players at the compatibility-sensitive step, grant test equipment, or advance stock quest stages. They are never run automatically and are not evidence that the complete Easter egg works. The passive 5-8 player fixes remain automatic.
 
-## Test setup and evidence capture
+Only the already-confirmed Der Eisendrache two-player bow-team feature has runtime verification. Every other expected result below is based on the stock decompile plus parser/emitter validation and still needs in-game confirmation.
 
-1. Set the private match to **UNRANKED**. Start the map from the UI or use `map <mapname>`.
-2. Open the console after the map loads. Use `spawnbot 7` for connection/array smoke tests; use real clients for simultaneous-use, pressure-plate, vehicle and quest-participation tests because bots do not perform quest interactions reliably.
-3. Confirm the map helper's `zm8:` loaded line appears. Keep the console open for diagnostics and record the first script/link error verbatim.
-4. For spectator tests, let one client bleed out and remain in `sessionstate == "spectator"`; do not use `zm8_spawn` until the gate under test has resolved.
-5. Run the legitimate route first. Commands labeled **testing cheat** below are only accelerated setup for isolating the late step; they are not evidence that the complete quest works.
-6. After each transport or ending, verify all living clients retain weapons, controls, orientation and a valid `spectator_respawn` on the following round.
+## Common setup
 
-## Finding matrix
+1. Select **UNRANKED**, load the named map, open the host console, and run `spawnbot 7`.
+2. Run `zm8_godmode 1`, then `zm8_test help`. The help line proves that the map helper linked and lists the scenarios available on that map.
+3. Run one scenario per fresh map unless the procedure explicitly says to continue. Stage-skipping and one-shot map initialization are not designed to rewind.
+4. Bots can validate arrays, ownership fields, transport destinations, flags, and spectator exclusion. Use real clients for simultaneous `F` presses, vehicle purchasing, pressure plates, soul collection, and movement-sensitive steps.
+5. Record the first script/link error verbatim. After every transport, verify all living players retain controls, weapons, angles, and a valid next-round respawn.
 
-| Map | Stock failure or risk | Classification and exact fix | Code | Remaining uncertainty |
-|---|---|---|---|---|
-| Der Eisendrache (`zm_castle`) | Four physical Ragnarok pads, but `boss_fight_ready` waits for `level.players.size`; spectators and player 5 make the ritual impossible. Elemental bow quests have one owner/coroutine per element. | **Automatic:** require every living participant up to four, and four real claimed pads for 5–8. Existing, runtime-confirmed **shared contribution/ACTIVE** bow teams are preserved unchanged. | `zm_castle/zm8_castle.gsc`: `boss_fight_ready`; existing bow detours | Boss start/ending with 5–8 is not runtime-tested. Character twins share four teleport locations briefly. |
-| Origins (`zm_tomb`) | Step 6's tablet handler sets `ee_all_players_upgraded_punch` only when every connected entity is upgraded; a spectator can never qualify. Staff world state has one owner/object per element. | **Automatic:** the stock stage coroutine waits until every living participant legitimately has `b_punch_upgraded`, sets the stock flag, then calls the stock stage completion API. Duplicate staff holders share the one elemental objective; no second quest instance is created. | `zm_tomb/zm8_tomb.gsc`: `stage_logic`; global `zm8.gsc`: staff pickup wrappers | Optional Origins challenge rewards remain keyed by four character indices. Duplicate staff holder UI/owner fields may show only one holder. |
-| Gorod Krovi (`zm_stalingrad`) | Dragon has four passenger tags; boss balance arrays and landing structs end at four; three challenge pools end at six; time-trial switches end at four; KOTH, two lockboxes and sewer entry count spectators. | **Automatic:** cap each dragon trip at four; pad boss arrays/landings; repeat challenge assignments only after exhaustion; use four-player time thresholds for 5–8; credit only non-playing clients at all-connected gates. | global `zm8.gsc`: `zm8_gk_*`; `zm_stalingrad/zm8_stalingrad.gsc`: challenge and timer detours | Four challenge reward boards/models each hold one owner. Players 5–8 progress trials but cannot safely claim a board reward; console diagnostic is intentional. Full trials/boss sequence needs runtime testing. |
-| Shadows of Evil (`zm_zod`) | Post-Keeper main coroutine continues only for exactly four players. Ending IGC indexes four named exits by player position. Sword ownership/progress is character-indexed. | **Automatic:** accept 4–8 in the stock branch, preserve Keeper states/ending, reuse four ending exits with offsets, and retain existing duplicate upgraded swords for character twins. | global `zm8.gsc`: spawn delay/sword assist; `zm_zod/zm8_zod.gsc`: `function_189ed812`, `function_5091df99` | Ritual/sword props are still one instance per character; twins share progress. Full 5–8 Shadowman/tram/ending runtime is unverified. |
-| Zetsubou No Shima (`zm_island`) | Challenge pools end at 5/6/5; the all-challenges gate compares completion against all connected players; several encounter arrays and boss arrivals end at four. | **Automatic:** repeat exhausted assignments with per-player state/modulo boards; set the stock all-challenges flag only when every living participant completed all three; clamp stock balance tables; offset boss rescue arrivals. | `zm_island/zm8_island.gsc`: challenge, PaP, Skull and Takeo detours | KT-4/Masamune and Skull remain globally unique by design. Plant mutation ownership and the complete Takeo ending need runtime coverage. |
-| Moon (`zm_moon`) | No hard 5–8 quest gate found. Teleport validation already excludes invalid players and character-index destinations remain defined. PaP's zombie-distraction POI counts all connected players. | **Safe with 5–8; cosmetic only:** no automatic patch. PaP itself works even if a spectator prevents the distraction POI. | No map helper; global commands are **testing cheats only** | Full 5–8 Richtofen EE remains runtime-unverified. Character twins share helmet clientfields. |
-| Revelations (`zm_genesis`) | Both arena paths directly index four arrivals; Old School delay and time-trial switches end at four; three challenge pools end at six. | **Automatic:** pad arena arrivals/Old School delay to eight; use four-player time thresholds; repeat trials after exhaustion and keep independent progress. | `zm_genesis/zm8_genesis.gsc`: one-shot padders, timer and challenge detours | Only four single-owner reward boards exist. Players 5–8 progress trials without reward-board pickup. Main rift gate is stock-safe and still requires all living players in its small radius. |
-| Shangri-La (`zm_temple`) | Pack-a-Punch asks for one plate per connected player but has four plates. Main EE has four physical co-op roles/buttons; two cleanup loops include all connected players. | **Automatic:** existing helper requires living players capped at four for PaP. Main EE's four-role actions are safe: any four unique participants can contribute. | `zm_temple/zm8_temple.gsc`: PaP plate detour | The two “all players leave wall” cleanup loops were not forced; walk all clients away. Spectator-follow behavior should be runtime-checked. |
-| Ascension (`zm_cosmodrome`) | Lander has four anchors; intro indexes them for every player; Matryoshka VO handles only indices 0–3; main EE pressure timer includes spectators. | **Automatic:** four riders per normal trip, shared cinematic anchors, modulo VO, and a faithful pressure timer requiring every living participant. | `zm_cosmodrome/zm8_cosmodrome.gsc`: lander, VO, `area_timer` detours | Eight-player Gersh-device finale/reward has not been runtime-tested. |
-| The Giant (`zm_factory`) | Mainframe teleporter staging and destination arrays have four slots. | **Automatic:** include all valid pad occupants, fold the second group onto four slots with offsets. | `zm_factory/zm8_factory.gsc`: teleporter detours | Simultaneous eight-player arrival collision/crumb behavior needs runtime testing. No main quest blocker found. |
-| Shi No Numa (`zm_sumpf`) | Opening placement indexes four spawn structs directly. Zipline keeps assigning after four attachment tags are exhausted. | **Automatic:** reuse spawn structs with offsets and retain the real struct as `spectator_respawn`; carry at most four zipline riders per trip. | `zm_sumpf/zm8_sumpf.gsc`: spawn and zipline detours | Verify purchaser-first ordering and return trip with players waiting at both stops. |
-| Kino der Toten (`zm_theater`) | Teleporter directly indexes four staging/destination slots. | **Automatic:** fold players 5–8 onto valid slots and offset the second group at both ends. | `zm_theater/zm8_theater.gsc`: teleporter detours | Eight-player film-room return and downed-player handling need runtime testing. No main quest blocker found. |
+Useful common commands:
 
-## Exact map test procedures
+- `zm8_spawn`: spawn waiting players.
+- `zm8_godmode 1`: open barriers and maintain host health, points, ammo, speed, and perks.
+- `zm8_test help`: show the current map's accelerated scenarios.
 
-### Der Eisendrache
+## Der Eisendrache (`zm_castle`)
 
-1. `map zm_castle`, then `spawnbot 7`; confirm `zm8: DE two-player shared bow teams loaded` and no linker error.
-2. Preserve the confirmed bow regression test: with one bot use `spawnbot 1`, then `zm8_de_botlightning`. Approach the Lightning undercroft soul box, press/release `F` once to join, then press/release again to take ACTIVE. Repeat contributions at plates, urns and bonfires; repeat the upgraded-bow pickup deliberately. Expected: the stock stage changes once, both teammates contribute, and the box interaction text remains stable.
-3. Legitimate boss test: complete the quest, give/earn Ragnaroks normally, place four living players on the four undercroft pads and plant simultaneously while players 5–8 stand nearby. Expected: four real claims start the fight; no command is needed.
-4. Spectator variant: bleed out player 8 before the ritual and repeat. Expected: the spectator is excluded.
-5. Accelerated isolation only: `zm8_de_eecomplete`, then `zm8_de_ragnarok`. `zm8_de_bossfight` is now a **testing/recovery cheat**, not the normal compatibility path.
+Stock risks: one owner/coroutine per elemental quest, four Ragnarok pads, and stock boss readiness counting connected players. Automatic fix: two-person shared-contribution/ACTIVE bow teams; reusable upgraded-bow pickup; boss ritual requires living participants capped at the four real pads.
 
-### Origins
+Run these on separate fresh loads where practical:
 
-1. `map zm_tomb`, `spawnbot 7`; verify `zm8: Origins active-player punch gate compatibility loaded`.
-2. With human clients, have two players take the same base staff from its pedestal. Charge/upgrade it using shared nearby kills, place the one physical staff where the quest requests it, and confirm the second holder neither resets nor duplicates the stock prop.
-3. Reach step 6 normally. Every living player must earn 20 fist souls and collect their tablet. Bleed out one otherwise-unupgraded client before the last living player collects theirs.
-4. Expected: `ee_all_players_upgraded_punch` advances the stock stage only after all living participants have the upgrade; the spectator does not block it. Respawned players should retain normal quest flow.
-5. Accelerated isolation only: `zm8_origins_generators`, repeated `zm8_origins_eenext`, or `zm8_origins_punch` are **testing cheats**.
+- `zm8_test bowteam`: assigns the first bot as Lightning ACTIVE and drives the confirmed shared-Lightning harness. At the Lightning undercroft box, press/release `F` once to join, then again to take ACTIVE. Expected: stable element prompt and ACTIVE/PARTNER transfer; either teammate contributes without duplicate stage changes.
+- `zm8_test bows lightning`, `fire`, `void`, or `wolf`: gives the selected upgraded bow to every living player. Use this to verify duplicate ownership, ammo, weapon switching, and deliberate repeat pickup without replaying each elemental quest. Omit the element to give all four across the team.
+- `zm8_test bossready`: skips to the real boss ritual and gives Ragnaroks, but does not force the pad counter. Put four real clients on the four pads and plant. With 5-8 living, four claimed pads must start the fight; a spectator must not block it.
+- `zm8_test boss`: same setup, then forces the final transition for boss-arena and ending isolation. Expected: all living players reach valid destinations and regain controls.
 
-### Gorod Krovi
+Do not regress the already-confirmed box interaction or `zm8_de_botlightning` behavior.
 
-1. `map zm_stalingrad`, `spawnbot 7`; confirm both global GK messages and `zm8: Gorod Krovi 5-8 player challenge compatibility loaded` with no undefined challenge error.
-2. Inspect each human client's three trials. Players 7–8 must have valid descriptions/progress. Players 5–8 should produce the explicit “no safe reward board” console diagnostic; do not treat absent reward pickup as a new failure.
-3. Finish round 5 under 240 seconds with 5–8 connected. Expected: stock time-trial notification/reward. Repeat the round 10/15/20 thresholds when practical.
-4. Board dragons with five players at one station. Expected: exactly four travel and the fifth remains controllable for the next trip.
-5. During KOTH and each Dragon Strike lockbox stage, leave one client spectating while every living client performs the interaction. Expected: the non-playing client is credited; living stragglers are not.
-6. Take all living clients through the sewer. Expected: the stock boss transition begins after every eligible rider, with eight valid landing spots and four-player-capped boss pacing.
-7. `zm8_gk_arena` is a manual recovery path only. `zm8_gk_eecomplete`, `zm8_gk_koth`, `zm8_gk_weapons` and `zm8_gk_gauntlet` are **testing cheats**.
+## Origins (`zm_tomb`)
 
-### Shadows of Evil
+Stock risks: one staff world objective per element and an upgraded-punch gate requiring every connected entity. Automatic fix: shared staff pickup/objective state and a living-player-only punch gate.
 
-1. `map zm_zod`, `spawnbot 7`; confirm the Zod helper and no unresolved `zm_zod_sword` import.
-2. Complete rituals and sword eggs normally with at least five humans. When a character's upgraded sword is earned, verify its character twin receives a duplicate and the all-active sword gate can finish.
-3. Complete all four Keeper defenses. Expected with 5–8 connected: `ee_quest_state` proceeds to the stock final phase instead of stopping at state 2.
-4. Complete Shadowman damage/banish and the tram/co-op shock sequence. At the ending, verify all clients appear at defined exits; players 5–8 should be offset from the first group.
-5. Accelerated isolation only: `zm8_soe_eecomplete`, `zm8_soe_swords 2`, and `zm8_soe_servant` are **testing cheats**.
+- `zm8_test staffs fire`, `ice`, `wind`, or `lightning`: powers the generators and grants duplicate holders the selected stock staff. Omit the element to distribute all staff types. Verify two holders can charge, place, retrieve, and use the shared elemental objective without clearing one another's weapon.
+- `zm8_test punchprep`: advances prerequisites to step 6 and gives upgraded punch to bots only. Expected: the stage remains blocked because the living host is unfinished.
+- `zm8_test punchfinish`: gives the host's contribution through the stock punch state. Expected: the automatic living-player gate sets `ee_all_players_upgraded_punch` and advances exactly once.
+- Spectator variant: after `punchprep`, let one bot/client spectate, then run `punchfinish`. Expected: the spectator is excluded.
+- `zm8_test portal`: advances through the stock stage API to isolate final staff placement, robot button, portal, and ending behavior. Verify duplicate staff holders do not overwrite the one physical placed staff.
 
-### Zetsubou No Shima
+## Gorod Krovi (`zm_stalingrad`)
 
-1. `map zm_island`, `spawnbot 7`; confirm the helper and valid challenges for all clients. Verify players 5–8 see/use their modulo board but retain independent progress.
-2. With humans, complete all three trials for every living participant. Leave one client spectating. Expected: the stock `all_challenges_completed` effects play once and the electric-shield/zipline step unlocks.
-3. Perform the charged electric-shield zipline action with multiple players at the line. Expected: the actual rider is ejected normally and no spectator blocks it.
-4. Run each Skull ritual, final Skull room, PaP valve defense and Takeo boss with 5–8 connected. Expected: four-player-capped pacing, no undefined arrays, and separated rescue destinations.
-5. Test KT-4/Masamune, plants, elevator entry and Takeo sequencing normally; no duplication/skip command was added.
+Stock risks: four dragon seats, 1-4-player balance/time arrays, challenge-pool exhaustion, four boss arrivals, and all-connected gates in KOTH, lockboxes, sewer, and boss entry. Automatic fixes preserve stock sequences while capping or padding only those limits.
 
-### Moon
+- `zm8_test dragon`: turns on the crafted dragon network, gives points, and places the team at the library platform. Buy a trip with five real clients present. Expected: purchaser plus at most three others ride; the fifth stays controllable for the next trip.
+- `zm8_test trials`: completes all three assigned trials for every living player via the real player flags. Before running it, inspect slots 7-8 for valid descriptions. Expected: no undefined trial; slots 5-8 may log the intentional no-safe-reward-board diagnostic.
+- `zm8_test timer 5`, `10`, `15`, `20`, or `50`: invokes the stock reward/notification path immediately, so no round grind is required. Verify the named reward and no undefined player-count lookup.
+- `zm8_test postquest`: invokes the stock post-quest all-perks threshold path.
+- `zm8_test koth`: satisfies prior quest flags, credits bots/non-playing clients, and moves the host to the real KOTH interaction. A living human straggler must still be required.
+- `zm8_test lockbox`, then on a fresh load `zm8_test lockbox2`: isolates both Dragon Strike lockbox all-player gates. Spectators/bots are credited; living humans must still participate.
+- `zm8_test sewer`: skips prior quest work and sends every living player through the real sewer trigger. Expected: the stock gate opens only after every eligible player enters and all receive valid arrivals.
+- `zm8_test boss`: performs the sewer setup and forces only the recovery counter, isolating boss teleport, four-player-capped balance, Nikolai sequence, and exit.
 
-1. `map zm_moon`, `spawnbot 7`; verify all living clients travel both directions through the Area 51 teleporter and arrive at defined character-index destinations.
-2. Complete hacker, QED, excavator and Richtofen EE interactions normally with 5–8. Verify no all-player gate stalls.
-3. Spectator cosmetic check: leave one client spectating at Area 51. Expected: PaP remains usable even if the zombie-distraction POI does not activate.
-4. `zm8_moon_wavegun` and `zm8_moon_qed` are **testing cheats** only.
+## Shadows of Evil (`zm_zod`)
 
-### Revelations
+Stock risks: 5+ zombie spawn delay is undefined, sword progress is character-indexed, post-Keeper logic accepts exactly four, and ending exits have four entries. Automatic fixes clamp pacing, duplicate an earned upgraded sword to the index twin, accept 4-8, and reuse exits with offsets.
 
-1. `map zm_genesis`, `spawnbot 7`; confirm arena, Old School and challenge padding messages. Players 7–8 must receive valid trial data; players 5–8 log the intentional no-board-reward diagnostic.
-2. Finish round 5 under 240 seconds with 5–8 connected. Expected: the time-trial notification and reward. Repeat rounds 10/15/20 where practical.
-3. Trigger the Old School side egg. Expected: its two-second four-player delay is used and no undefined wait occurs.
-4. Complete four Keeper runes. Stack every living player within the stock 84-unit rune-portal radius. Expected: the gate opens without spectator assistance.
-5. Enter both arena phases with 5–8 living clients. Expected: every `function_56668973` receives a defined padded arrival; the second group is offset.
-6. Accelerated early setup only: `zm8_rev_eecomplete` is a **testing cheat**; the rune trial and portal entry remain manual. Weapon commands are cheats.
+- `zm8_test swordtwin`: gives an upgraded sword to one living member of the first duplicate character pair only. Expected: within two seconds the automatic assist gives the matching twin their sword. This requires at least five living players.
+- `zm8_test swords 0`, `1`, or `2`: grants every living player the matching sword tier for inventory and all-player-gate isolation. Tier 2 is the upgraded quest sword.
+- `zm8_test keepers`: starts the real four Keeper defenses without rituals, eggs, or ovum setup. Complete/observe them with 5-8 connected.
+- `zm8_test shadowman`: credits all four Keeper defenses and starts the first Shadowman phase.
+- `zm8_test tram`: credits the first Shadowman defeat and stops at the tram/co-op shock ending phase. Perform the tram/shock interactions with real clients; the coroutine must not stall merely because 5-8 are connected.
+- `zm8_test ending`: advances through the same stock states and releases the ending. Expected: every client receives a defined exit; players 5-8 are offset from the first four.
 
-### Shangri-La
+## Zetsubou No Shima (`zm_island`)
 
-1. `map zm_temple`, `spawnbot 7`; with eight living players, occupy all four PaP plates. Expected: PaP opens at four physical plates.
-2. With three living and one or more spectators, occupy three plates. Expected: PaP opens; spectators are excluded.
-3. Run the main EE: use four unique players on sundial/co-op actions; let different members of the 5–8 group fill those roles on a second attempt. Verify waterslide/eclipses/focusing stone remain stock.
-4. After anti-115/dynamite-wall steps, walk every client well outside the area. Record any spectator cleanup stall; no forced completion was added.
-5. `zm8_shang_shrinkray` is a **testing cheat** only.
+Stock risks: challenge pools end at 5/6/5, challenge completion counts connected players, several encounter arrays end at four, and boss arrivals have four points. Automatic fixes repeat exhausted assignments, retain per-player flags, exclude spectators at the completion gate, clamp balance, and offset arrivals.
 
-### Ascension
+- `zm8_test challengesprep`: completes all bot challenge flags but leaves the host unfinished. Expected: `all_challenges_completed` stays false.
+- `zm8_test challengesfinish`: adds only the host contribution. Expected: the stock all-challenges effects fire once. Repeat with a spectator before the finish command; the spectator must not block it.
+- `zm8_test plants`: gives every living player a seed clientfield and places them at planting spots. Plant simultaneously and verify per-entity plants/harvests do not overwrite another player's state.
+- `zm8_test masamune`: grants every living player an upgraded Masamune for ownership/use stress testing. This is intentionally more permissive than the legitimate globally unique quest item.
+- `zm8_test zipline`: powers/unlocks/charges the real zipline and places players at its first control. Use a real client to test shield/ejection while extras and a spectator are present.
+- `zm8_test pap`: starts the real valve-defense routine directly. Verify 5-8 use the four-player balance values and cleanup completes.
+- `zm8_test skull 1` through `4`: starts that real Skull ritual balance routine. Use `zm8_test skullfinish <n>` to end the current ritual without grinding enemies, then start the next.
+- `zm8_test skullroom`: starts the real final Skull-room defense.
+- `zm8_test elevator`: marks the three gears found/placed, initializes the elevator, and puts all living players in its cage. Expected: all travel and regain controls.
+- `zm8_test boss`: initializes Takeo, grants Masamunes, and moves every living player to padded fight arrivals. Verify boss pacing, down/rescue points, victory, and exit.
 
-1. `map zm_cosmodrome`, `spawnbot 7`; verify all eight survive the opening cinematic and regain controls after sharing four anchors.
-2. Put five humans on a normal lander platform and buy the trip. Expected: four riders travel, purchaser is not displaced by bystanders, fifth remains controllable and can take the next trip.
-3. Reach the Gersh pressure plate. Keep every living client on the plate for the full stock timer while one client spectates. Expected: timer completes and the nuke/quest sequence fires once. A living straggler must reset the timer.
-4. Trigger the Matryoshka doll responses with player slots 5–8. Expected: valid modulo-four VO and no undefined alias.
+## Moon (`zm_moon`)
 
-### The Giant
+No proven hard 5-8 quest gate was found, so this helper changes no normal gameplay. Its commands isolate the remaining runtime-only risks.
 
-1. `map zm_factory`, `spawnbot 7`; gather all living clients on the mainframe teleporter and activate it.
-2. Expected: every pad occupant is staged, teleported and returned; players 5–8 use nearby offsets and retain controls/weapons. Repeat with a spectator and with one downed player outside the pad.
+- `zm8_test teleporter`: stacks all living players on the Area 51 teleporter. Test both directions; every living client must receive a valid character-index destination. Repeat with one spectator.
+- `zm8_test hacker`: grants the host the Hacker through the stock limited-equipment API. Use it on the current quest hack instead of searching the labs.
+- `zm8_test wavegun` and `zm8_test qed`: grant the relevant quest weapons.
+- `zm8_test stage ss1`, `osc`, `sc`, `sc2`, or `ss2`: completes preceding main-sidequest stages through the stock stage API and stops when the requested stage becomes active.
+- `zm8_test next`: completes only the currently active main stage.
+- `zm8_test ee`: walks the main sidequest to completion for ending isolation. Because Moon has parallel subquests, treat any “stage did not become active” diagnostic as a runtime finding rather than forcing another flag.
 
-### Shi No Numa
+Also check the documented cosmetic case: a spectator in Area 51 may prevent the zombie-distraction POI, but Pack-a-Punch itself must remain usable.
 
-1. `map zm_sumpf`, then immediately `spawnbot 7` before round logic settles. Expected: all eight receive defined initial positions/angles; players 5–8 are offset and later have valid spectator respawns.
-2. Put five humans at a zipline stop and have one buy it. Expected: purchaser plus at most three others ride; the fifth stays controllable. Repeat the return trip and swap which player buys.
-3. Bleed out an offset-spawn player and wait for normal round respawn. Expected: the real reused spawn struct works as `spectator_respawn`.
+## Revelations (`zm_genesis`)
 
-### Kino der Toten
+Stock risks: two arena paths and Old School timing directly index four entries; time trials end at four players; challenge pools end at six. Automatic fixes pad arrivals/timing, clamp thresholds, and repeat trial assignments with per-player state.
 
-1. `map zm_theater`, `spawnbot 7`; place all living clients in the teleporter and activate it.
-2. Expected: all clients reach the projection room using four valid destinations plus second-group offsets, then return with controls/weapons intact. Repeat with one spectator and one downed client.
+- `zm8_test trials`: completes all living players' assigned trials through real flags. Slots 7-8 must have valid data; slots 5-8 may log the intentional no-safe-board diagnostic.
+- `zm8_test timer 5`, `10`, `15`, or `20`: invokes the stock reward immediately.
+- `zm8_test oldschool`: starts the stock Old School reset timer using the padded current-player entry.
+- `zm8_test runes`: credits the four runes and stacks every living player inside the real arena-portal radius. Expected: spectators are ignored and all living players satisfy the stock radius gate.
+- `zm8_test arena1` and, on a fresh load, `zm8_test arena2`: invoke the real arena-arrival function for every living player. Verify defined, offset arrivals and controls.
+- `zm8_test quest`: skips early main-quest setup for general late-state isolation.
+- `zm8_test thundergun` and `zm8_test servant`: grant the relevant weapons.
 
-## No-change audit notes
+## Shangri-La (`zm_temple`)
 
-- Physical four-role quest objects (four Origins staffs, four Shangri-La sundial buttons, four Zetsubou skull altars) are objective counts, not arrays that must expand to eight. Sharing/rotating participants is correct; creating eight independent world instances would race stock global flags and cleanup.
-- Character-index arrays on all maps remain 0–3 by design. zm8 only duplicates a held quest weapon where the stock all-active-player gate makes that necessary (DE bows, Origins staffs, Shadows swords). VO/models/cosmetics may be shared by character twins.
-- No new permanent global poller was added. New polling is confined to an active quest stage, an existing replaced timer, or one-shot initialization; existing GK/DE monitors were extended rather than duplicated.
+Stock risk: Pack-a-Punch requests one pressure plate per connected player despite four physical plates. Automatic fix: one plate per living participant capped at four. The main EE retains its four physical co-op roles.
+
+- `zm8_test pap`: powers the map and places all living players across the required real plates. With eight living, PaP must open from the four plates; with three living plus spectators, only three plates must be required.
+- `zm8_test shrinkray`: grants the quest wonder weapon.
+- `zm8_test stage BaG`, `bttp`, `bttp2`, `DgCWf`, `LGS`, `OaFC`, `PtT`, or `StD`: skips preceding stages through the stock sidequest API and stops at the requested co-op step. Rotate which four real clients perform the physical roles while extras remain connected.
+- `zm8_test next`: completes only the active stage after its compatibility behavior is observed.
+- `zm8_test ee`: walks the main sidequest to completion for focusing-stone/ending isolation.
+
+For the anti-115/dynamite-wall cleanup stages, move all living clients away before `next`. Spectator behavior remains a runtime uncertainty and is not silently forced.
+
+## Ascension (`zm_cosmodrome`)
+
+Stock risks: four lander anchors, opening cinematic direct indexing, Matryoshka VO only for indices 0-3, and the pressure timer counting spectators. Automatic fixes share/cap seats, modulo VO, and require every living participant.
+
+- Opening cinematic: connect all clients before loading the map. It cannot safely be replayed mid-match. Expected: all eight regain control after sharing four authored anchors.
+- `zm8_test lander`: powers the map, gives points, and moves all living players to the current lander. Buy with five real clients. Expected: exactly four ride and the next group can take another trip.
+- `zm8_test pressurefast`: starts the real compatibility detour with a 10-second testing timer and stacks the living team. A living player stepping off must reset it; a spectator must not matter.
+- `zm8_test pressure`: same test using the full stock 120-second timer and stock post-step effects.
+- `zm8_test doll`: moves slots 5-8 to Matryoshka trigger 0. Use it and verify valid modulo-four VO.
+- `zm8_test reward`: invokes the stock delayed Gersh reward iterator directly. After 12.5 seconds, every valid player must receive the normal all-perks/Death Machine reward without an index error.
+
+## The Giant (`zm_factory`)
+
+Stock risk: four teleporter staging and arrival slots. Automatic fix: include every valid pad occupant and offset players 5-8 on reused slots.
+
+- `zm8_test teleporter`: places all living players at the mainframe pad and invokes the real detoured teleport path. Expected: all reach a defined destination, retain controls/weapons, and return normally. Repeat with one spectator and one downed player outside the pad.
+
+## Shi No Numa (`zm_sumpf`)
+
+Stock risks: four opening spawn structs and four zipline attachment tags. Automatic fix: reuse spawn structs with offsets and cap each real zipline trip at four.
+
+- `zm8_test spawn`: reruns the real detoured opening placement immediately. Expected: all eight get valid positions, angles, and real `spectator_respawn` structs.
+- `zm8_test zipline`: places all living players in the zipline volume and invokes the real detoured trip with the host as purchaser. Expected: purchaser plus at most three riders travel; extras remain controllable. Run it again from the opposite stop for the return trip.
+- Bleed out a second-group player after `spawn`; their normal next-round respawn must use the valid reused struct.
+
+## Kino der Toten (`zm_theater`)
+
+Stock risk: four teleporter staging and projection-room slots. Automatic fix: reuse them with offsets for players 5-8.
+
+- `zm8_test teleporter`: places all living players on the pad, invokes the real detoured trip to the projection room, waits 15 seconds, then invokes the stock return. Expected: all clients retain weapons/controls and receive defined positions. Repeat with a spectator/downed client.
+
+## Verruckt (`zm_asylum`) and Nacht (`zm_prototype`)
+
+No late quest, transport, player-count balance table, or compatibility-sensitive array was found, so there is no fake EE state to create.
+
+- `zm8_test help`: reports that the map has no late scripted test state.
+- `spawnbot 7`, `zm8_godmode 1`, and `zm8_spawn`: perform the full connection, spawn, round, down, spectator, and next-round-respawn baseline without progression grind.
+
+## Interpretation rules
+
+- A `zm8_test` command succeeding proves only the isolated stock path and compatibility detour reached by that command.
+- Do not report a full EE as runtime-tested after using stage skips.
+- Four world objects such as staffs, skull altars, bows, or co-op buttons remain four shared objectives; creating eight independent instances would race stock flags, models, animations, and cleanup.
+- Four character identities still repeat for slots 5-8. Shared cosmetics are acceptable; undefined state, quest deadlocks, lost weapons, invalid destinations, or living-player exclusion are failures.

@@ -98,6 +98,7 @@ autoexec function zm8_init()
     // captured as &player_too_many_players_check during _zm init.)
     level.player_too_many_players_check_func = &zm8_too_many_players_check;
     level.player_too_many_players_check = 1;
+    level.zm8_test_announce = &zm8_announce;
     level thread zm8_player_cap_monitor();
 
     // Register after the listen server has entered the game.
@@ -263,9 +264,9 @@ function zm8_powerup_pool_fixer()
 //                           Thundergun
 //   zm8_rev_servant       - TESTING CHEAT: give everyone the upgraded
 //                           Apothicon Servant
-// Audit result: Revelations has NO 5-8 player compatibility gates - the
-// boss-arena rift gate counts only ACTIVE players (spectator-safe) and the
-// 4 arena teleport landing structs are shared, not indexed per player.
+// Revelations' map helper pads both four-entry arena arrival paths and the
+// Old School delay, clamps time trials, and repeats exhausted challenges.
+// The boss-arena rift gate itself counts only ACTIVE players and is safe.
 // Note for 5-8: the rift opens when every living player stands within 84
 // units of the rune portal - everyone must stack tightly on it.
 //
@@ -305,6 +306,7 @@ function zm8_register_commands()
     addcommand("zm8_spawn");
     addcommand("zm8_autospawn");
     addcommand("zm8_gum");
+    addcommand("zm8_test");
 
     // Der Eisendrache
     addcommand("zm8_de_test");
@@ -412,6 +414,10 @@ function zm8_command_dispatch_loop()
         else if (command_name == "zm8_gum")
         {
             zm8_cmd_gum(args);
+        }
+        else if (command_name == "zm8_test")
+        {
+            zm8_cmd_test(args);
         }
         else if (command_name == "zm8_de_test")
         {
@@ -522,6 +528,584 @@ function zm8_command_dispatch_loop()
             zm8_shang_cmd_shrinkray(args);
         }
     }
+}
+
+function zm8_tail_args(args)
+{
+    tail = [];
+
+    if (!isdefined(args))
+    {
+        return tail;
+    }
+
+    for (i = 1; i < args.size; i++)
+    {
+        tail[tail.size] = args[i];
+    }
+
+    return tail;
+}
+
+function zm8_is_bot(player)
+{
+    return isdefined(player) && isdefined(player.pers) &&
+        isdefined(player.pers["isBot"]) && player.pers["isBot"];
+}
+
+// Testing-cheat dispatcher. Map-only setup logic is supplied by each map
+// helper through a function pointer, keeping this universal script free of
+// static map-only imports. Existing global cheats are exposed here as a
+// consistent command so every audit scenario has a direct setup path.
+function zm8_cmd_test(args)
+{
+    mapname = getdvarstring("mapname");
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (mapname == "zm_castle")
+    {
+        if (scenario == "help")
+        {
+            zm8_announce("^3zm8_test: bowteam | bows [element] | bossready | boss");
+            return;
+        }
+
+        if (scenario == "bowteam")
+        {
+            zm8_de_cmd_botlightning(zm8_tail_args(args));
+            return;
+        }
+
+        if (scenario == "bows")
+        {
+            zm8_de_cmd_bows(zm8_tail_args(args));
+            return;
+        }
+
+        if (scenario == "bossready" || scenario == "boss")
+        {
+            level thread zm8_de_test_boss_setup(scenario == "boss");
+            return;
+        }
+    }
+    else if (mapname == "zm_tomb")
+    {
+        if (scenario == "help")
+        {
+            zm8_announce("^3zm8_test: staffs [element] | punchprep | punchfinish | portal");
+            return;
+        }
+
+        if (scenario == "staffs")
+        {
+            zm8_origins_activate_generators();
+            zm8_origins_cmd_staffs(zm8_tail_args(args));
+            return;
+        }
+
+        if (scenario == "punchprep")
+        {
+            level thread zm8_origins_test_punch_prep();
+            return;
+        }
+
+        if (scenario == "punchfinish")
+        {
+            zm8_origins_test_punch_finish();
+            return;
+        }
+
+        if (scenario == "portal")
+        {
+            zm8_origins_cmd_eecomplete(undefined);
+            return;
+        }
+    }
+    else if (mapname == "zm_stalingrad")
+    {
+        if (scenario == "help")
+        {
+            zm8_announce("^3zm8_test: dragon | trials | timer <5|10|15|20|50> | postquest | koth | lockbox | lockbox2 | sewer | boss");
+            return;
+        }
+
+        if (scenario == "dragon")
+        {
+            level thread zm8_gk_test_dragon_setup();
+            return;
+        }
+
+        if (scenario == "koth")
+        {
+            level thread zm8_gk_test_koth_setup();
+            return;
+        }
+
+        if (scenario == "lockbox" || scenario == "lockbox2")
+        {
+            level thread zm8_gk_test_lockbox_setup(scenario == "lockbox2");
+            return;
+        }
+
+        if (scenario == "sewer")
+        {
+            level thread zm8_gk_test_sewer_setup(false);
+            return;
+        }
+
+        if (scenario == "boss")
+        {
+            level thread zm8_gk_test_boss_setup();
+            return;
+        }
+    }
+    else if (mapname == "zm_zod")
+    {
+        if (scenario == "help")
+        {
+            zm8_announce("^3zm8_test: swords [0|1|2] | swordtwin | keepers | shadowman | tram | ending");
+            return;
+        }
+
+        if (scenario == "swords")
+        {
+            zm8_soe_cmd_swords(zm8_tail_args(args));
+            return;
+        }
+
+        if (scenario == "swordtwin")
+        {
+            level thread zm8_soe_test_sword_twin();
+            return;
+        }
+
+        if (scenario == "keepers" || scenario == "shadowman" || scenario == "tram" || scenario == "ending")
+        {
+            level thread zm8_soe_test_phase_setup(scenario);
+            return;
+        }
+    }
+    else if (mapname == "zm_moon")
+    {
+        if (scenario == "wavegun")
+        {
+            zm8_moon_cmd_wavegun(undefined);
+            return;
+        }
+
+        if (scenario == "qed")
+        {
+            zm8_moon_cmd_qed(undefined);
+            return;
+        }
+    }
+    else if (mapname == "zm_genesis")
+    {
+        if (scenario == "quest")
+        {
+            zm8_rev_cmd_eecomplete(undefined);
+            return;
+        }
+
+        if (scenario == "thundergun")
+        {
+            zm8_rev_cmd_thundergun(undefined);
+            return;
+        }
+
+        if (scenario == "servant")
+        {
+            zm8_rev_cmd_servant(undefined);
+            return;
+        }
+    }
+    else if (mapname == "zm_temple" && scenario == "shrinkray")
+    {
+        zm8_shang_cmd_shrinkray(undefined);
+        return;
+    }
+
+    if (isdefined(level.zm8_test_handler))
+    {
+        level thread [[level.zm8_test_handler]](args);
+        return;
+    }
+
+    if (mapname == "zm_asylum" || mapname == "zm_prototype")
+    {
+        zm8_announce("^3zm8: this map has no late quest state; use zm8_godmode and zm8_spawn for the full baseline test");
+        return;
+    }
+
+    zm8_announce("^1zm8: unknown test scenario - run zm8_test help on this map");
+}
+
+function zm8_de_test_boss_setup(force_start)
+{
+    if (isdefined(level.zm8_de_test_boss_setup_running) && level.zm8_de_test_boss_setup_running)
+    {
+        zm8_announce("^3zm8: DE boss setup is already running");
+        return;
+    }
+
+    level.zm8_de_test_boss_setup_running = true;
+    zm8_de_cmd_eecomplete(undefined);
+    deadline = gettime() + 120000;
+
+    while (!isdefined(level.var_b366f2dc) && gettime() < deadline)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(level.var_b366f2dc))
+    {
+        level.zm8_de_test_boss_setup_running = false;
+        zm8_announce("^1zm8: DE boss ritual did not arm within 120 seconds");
+        return;
+    }
+
+    zm8_de_cmd_ragnarok(undefined);
+
+    if (force_start)
+    {
+        wait 0.5;
+        zm8_de_cmd_bossfight(undefined);
+    }
+    else
+    {
+        zm8_announce("^2zm8: DE boss ritual ready; use four real pads or zm8_test boss to force the transition");
+    }
+
+    level.zm8_de_test_boss_setup_running = false;
+}
+
+function zm8_origins_test_give_punch(player)
+{
+    if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+    {
+        return;
+    }
+
+    player.n_ee_punch_souls = 20;
+    player.b_punch_upgraded = 1;
+
+    if (!isdefined(player.str_punch_element))
+    {
+        player.str_punch_element = "upgraded";
+    }
+
+    player zm8_origins_give_punch_weapon();
+}
+
+function zm8_origins_test_punch_prep()
+{
+    if (isdefined(level.zm8_origins_punch_test_running) && level.zm8_origins_punch_test_running)
+    {
+        zm8_announce("^3zm8: Origins punch setup is already running");
+        return;
+    }
+
+    level.zm8_origins_punch_test_running = true;
+
+    if (!zm8_origins_activate_generators())
+    {
+        level.zm8_origins_punch_test_running = false;
+        return;
+    }
+
+    gates = array("ee_all_staffs_crafted", "ee_all_staffs_upgraded", "ee_all_staffs_placed", "ee_mech_zombie_hole_opened", "ee_quadrotor_disabled", "ee_mech_zombie_fight_completed", "ee_maxis_drone_retrieved");
+
+    for (i = 0; i < gates.size; i++)
+    {
+        zm8_origins_set_flag(gates[i]);
+        wait 1;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (zm8_is_bot(players[i]))
+        {
+            zm8_origins_test_give_punch(players[i]);
+        }
+    }
+
+    level.zm8_origins_punch_test_running = false;
+    zm8_announce("^2zm8: Origins step 6 prepared; bots have punch, run zm8_test punchfinish for the host contribution");
+}
+
+function zm8_origins_test_punch_finish()
+{
+    players = getplayers();
+
+    if (players.size < 1)
+    {
+        return;
+    }
+
+    zm8_origins_test_give_punch(players[0]);
+    zm8_announce("^2zm8: host punch contribution applied without forcing the all-player quest flag");
+}
+
+function zm8_gk_test_credit_bots(flag_name)
+{
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (zm8_is_bot(players[i]) && isdefined(players[i].flag) && isdefined(players[i].flag[flag_name]))
+        {
+            players[i] scripts\shared\flag_shared::set(flag_name);
+        }
+    }
+}
+
+function zm8_gk_test_dragon_setup()
+{
+    level scripts\shared\flag_shared::set("dragonride_crafted");
+    wait 2;
+    spots = scripts\codescripts\struct::get_array("s_dragon_platform_library");
+
+    if (!isdefined(spots) || spots.size < 1)
+    {
+        zm8_announce("^1zm8: Gorod library dragon platform was not found");
+        return;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        players[i] setorigin(spots[i % spots.size].origin + (0, (i % 4) * 24, 8));
+        players[i].score = 50000;
+    }
+
+    zm8_announce("^2zm8: dragon ride crafted; players moved to the library platform with points");
+}
+
+function zm8_gk_test_koth_setup()
+{
+    steps = array("ee_cylinder_acquired", "tube_puzzle_complete", "generator_on", "generator_charged", "keys_placed", "scenarios_complete", "ee_lockdown_complete");
+
+    for (i = 0; i < steps.size; i++)
+    {
+        if (isdefined(level.flag[steps[i]]) && !level.flag[steps[i]])
+        {
+            level scripts\shared\flag_shared::set(steps[i]);
+            wait 1;
+        }
+    }
+
+    deadline = gettime() + 30000;
+
+    while (!isdefined(getent("ee_koth_terminal", "targetname")) && gettime() < deadline)
+    {
+        wait 0.25;
+    }
+
+    zm8_gk_test_credit_bots("ee_koth_terminal_used");
+    terminal = getent("ee_koth_terminal", "targetname");
+    players = getplayers();
+
+    if (isdefined(terminal) && players.size > 0)
+    {
+        players[0] setorigin(terminal.origin + (48, 0, 0));
+    }
+
+    zm8_announce("^2zm8: KOTH prepared; bot contributions credited, use the terminal with the host");
+}
+
+function zm8_gk_test_lockbox_setup(upgraded)
+{
+    flag_name = "dragon_strike_lockbox_trigger_used";
+
+    if (upgraded)
+    {
+        flag_name = "dragon_strike_lockbox_upgraded_trigger_used";
+        level scripts\shared\flag_shared::set("dragon_stage3_started");
+    }
+
+    zm8_gk_test_credit_bots(flag_name);
+    lockbox = getent("dragon_strike_lockbox", "targetname");
+    players = getplayers();
+
+    if (isdefined(lockbox) && players.size > 0)
+    {
+        players[0] setorigin(lockbox.origin + (64, 0, 0));
+    }
+
+    zm8_announce("^2zm8: Dragon Strike lockbox prepared; use it once with the host");
+}
+
+function zm8_gk_test_boss_setup()
+{
+    level thread zm8_gk_test_sewer_setup(true);
+}
+
+function zm8_gk_test_sewer_setup(force_gate)
+{
+    zm8_gk_cmd_eecomplete(undefined);
+    deadline = gettime() + 120000;
+    trig = undefined;
+
+    while (!isdefined(trig) && gettime() < deadline)
+    {
+        trig = getent("ee_sewer_to_arena_trig", "targetname");
+        wait 0.25;
+    }
+
+    if (!isdefined(trig))
+    {
+        zm8_announce("^1zm8: Gorod sewer trigger did not arm within 120 seconds");
+        return;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        if (zm8_gk_player_can_participate(players[i]))
+        {
+            players[i] setorigin(trig.origin + (0, (i % 4) * 20, 8));
+            trig notify(#"trigger", players[i]);
+            wait 0.1;
+        }
+    }
+
+    wait 2;
+
+    if (force_gate)
+    {
+        zm8_gk_cmd_arena(undefined);
+    }
+    else
+    {
+        zm8_announce("^2zm8: every living player was sent through the real sewer trigger; waiting for the stock gate");
+    }
+}
+
+function zm8_soe_test_phase_setup(phase)
+{
+    if (isdefined(level.zm8_soe_test_phase_running) && level.zm8_soe_test_phase_running)
+    {
+        zm8_announce("^3zm8: Shadows phase setup is already running");
+        return;
+    }
+
+    level.zm8_soe_test_phase_running = true;
+    zm8_soe_cmd_eecomplete(undefined);
+    deadline = gettime() + 60000;
+
+    while ((!isdefined(level.flag["ee_begin"]) || !level.flag["ee_begin"]) && gettime() < deadline)
+    {
+        wait 0.25;
+    }
+
+    if (!isdefined(level.flag["ee_begin"]) || !level.flag["ee_begin"])
+    {
+        level.zm8_soe_test_phase_running = false;
+        zm8_announce("^1zm8: Shadows keeper phase did not initialize");
+        return;
+    }
+
+    level scripts\shared\flag_shared::set("ee_book");
+
+    if (phase == "keepers")
+    {
+        level.zm8_soe_test_phase_running = false;
+        zm8_announce("^2zm8: four Keeper defenses are active");
+        return;
+    }
+
+    names = array("boxer", "detective", "femme", "magician");
+
+    for (i = 0; i < names.size; i++)
+    {
+        level scripts\shared\flag_shared::set("ee_keeper_" + names[i] + "_resurrected");
+        wait 0.25;
+    }
+
+    if (phase == "shadowman")
+    {
+        level.zm8_soe_test_phase_running = false;
+        zm8_announce("^2zm8: Keeper defenses credited; Shadowman phase is starting");
+        return;
+    }
+
+    deadline = gettime() + 60000;
+
+    while ((!isdefined(level.flag["ee_boss_started"]) || !level.flag["ee_boss_started"]) && gettime() < deadline)
+    {
+        wait 0.25;
+    }
+
+    level scripts\shared\flag_shared::set("ee_boss_defeated");
+
+    if (phase == "tram")
+    {
+        level.zm8_soe_test_phase_running = false;
+        zm8_announce("^2zm8: Shadowman credited; tram/shock ending phase is active");
+        return;
+    }
+
+    wait 18;
+    level scripts\shared\flag_shared::set("ee_final_boss_defeated");
+    level.zm8_soe_test_phase_running = false;
+    zm8_announce("^2zm8: final Shadows ending sequence released");
+}
+
+// Give one member of the first duplicated character pair an upgraded sword,
+// leaving the other untouched so the automatic twin-assist is what must
+// perform the second grant. This is deliberately a test harness, not an
+// automatic quest shortcut.
+function zm8_soe_test_sword_twin()
+{
+    deadline = gettime() + 10000;
+
+    while ((!isdefined(level.sword_quest) || !isdefined(level.sword_quest.weapons)) && gettime() < deadline)
+    {
+        wait 0.25;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        source = players[i];
+
+        if (!zm8_gk_player_can_participate(source) || !isdefined(source.characterindex))
+        {
+            continue;
+        }
+
+        for (j = i + 1; j < players.size; j++)
+        {
+            twin = players[j];
+
+            if (!zm8_gk_player_can_participate(twin) || !isdefined(twin.characterindex) ||
+                twin.characterindex != source.characterindex)
+            {
+                continue;
+            }
+
+            if (!(source zm8_soe_give_sword(2)))
+            {
+                zm8_announce("^1zm8: could not give the source twin an upgraded sword");
+                return;
+            }
+
+            zm8_announce("^2zm8: gave one character twin a sword; watch the other receive it automatically within 2 seconds");
+            return;
+        }
+    }
+
+    zm8_announce("^1zm8: no living duplicate character pair found - connect/spawn at least 5 players");
 }
 
 // Hand the host (player 0 on a listen server) any gum via the stock
@@ -4826,8 +5410,8 @@ function zm8_soe_eecomplete_run()
 //    distraction. Pack-a-Punch itself keeps working.
 //  - helmet/wearable visuals are world clientfields keyed to character
 //    index 0-3, so index twins share them.
-// The hacker is granted through the equipment system, which is map-wired -
-// no give command for it (grab it in the labs normally).
+// The map-only Moon helper exposes a testing command that grants the Hacker
+// through the stock equipment API; it makes no automatic gameplay change.
 
 // TESTING CHEAT: give every living player the upgraded Zap Guns / Wave Gun.
 function zm8_moon_cmd_wavegun(args)
@@ -4942,15 +5526,11 @@ function zm8_moon_cmd_qed(args)
 }
 
 // ========================== Revelations (zm8_rev_*) ==========================
-// Audit result (decompile audit of ate47/bo3-source zm_genesis scripts):
-// Revelations has NO 5-8 player compatibility gates. The boss-arena rift
-// gate counts only ACTIVE players within 84 units of the rune portal
-// (spectators excluded), the arena entry/exit teleports share their 4
-// landing structs across however many players there are, zombie counts use
-// the shared systems (no per-player-count tables), and character assignment
-// falls back to index 0. The "all players completed their challenges"
-// counter exists here but nothing on THIS map reads it (Zetsubou reads it).
-// Everything below is therefore a TESTING CHEAT, not a compatibility fix.
+// Decompile audit result: the boss-arena rift gate counts only ACTIVE players
+// within 84 units and is safe, but both arena teleports, Old School timing,
+// time trials, and challenge assignment have fixed 4/6-entry data. Those
+// automatic fixes live in the map-only helper. Everything below remains a
+// TESTING CHEAT, not an automatic compatibility fix.
 //
 // 5-8 player note (documented, no fix needed): to open the rift into the
 // boss arena, every LIVING player must stand within 84 units of the rune

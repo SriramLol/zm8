@@ -1,16 +1,160 @@
 // zm8 - Revelations (zm_genesis) 5-8 player compatibility helper
 
+#using scripts\codescripts\struct;
 #using scripts\shared\array_shared;
 #using scripts\shared\flag_shared;
 #using scripts\zm\_zm;
+#using scripts\zm\zm_genesis_arena;
 #using scripts\zm\zm_genesis_challenges;
+#using scripts\zm\zm_genesis_minor_ee;
 #using scripts\zm\zm_genesis_timer;
 
 autoexec function zm8_genesis_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_genesis_test_command;
     println("zm8: Revelations 5-8 player arena/challenge compatibility loaded");
     level thread zm8_genesis_pad_arena_arrivals();
     level thread zm8_genesis_pad_old_school_timer();
+}
+
+function zm8_genesis_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_genesis_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_genesis_test_say("^3zm8_test: quest | trials | timer <5|10|15|20> | oldschool | runes | arena1 | arena2 | thundergun | servant");
+        return;
+    }
+
+    if (scenario == "trials")
+    {
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (!isdefined(players[i]) || !isalive(players[i]) || players[i].sessionstate != "playing")
+            {
+                continue;
+            }
+
+            players[i] scripts\shared\flag_shared::set("flag_player_completed_challenge_1");
+            players[i] scripts\shared\flag_shared::set("flag_player_completed_challenge_2");
+            players[i] scripts\shared\flag_shared::set("flag_player_completed_challenge_3");
+        }
+
+        zm8_genesis_test_say("^2zm8: completed all assigned Revelations trials through their real player flags");
+        return;
+    }
+
+    if (scenario == "timer")
+    {
+        if (!isdefined(args) || args.size < 2)
+        {
+            zm8_genesis_test_say("^3zm8: usage: zm8_test timer <5|10|15|20>");
+            return;
+        }
+
+        completed_round = int(args[1]);
+
+        if (completed_round != 5 && completed_round != 10 && completed_round != 15 && completed_round != 20)
+        {
+            zm8_genesis_test_say("^1zm8: Revelations timer round must be 5, 10, 15 or 20");
+            return;
+        }
+
+        luinotifyevent(&"zombie_time_attack_notification", 2, completed_round, level.players.size);
+        playsoundatposition("zmb_genesis_timetrial_complete", (0, 0, 0));
+        level thread scripts\zm\zm_genesis_timer::function_cc8ae246(completed_round);
+        zm8_genesis_test_say("^2zm8: fired the stock Revelations time-trial reward for round " + completed_round);
+        return;
+    }
+
+    if (scenario == "oldschool")
+    {
+        if (!isdefined(level.var_557b53fd) || !isdefined(level.var_557b53fd[level.players.size]))
+        {
+            zm8_genesis_test_say("^1zm8: Old School timer array is not initialized yet");
+            return;
+        }
+
+        level thread scripts\zm\zm_genesis_minor_ee::function_2d1b88ec();
+        zm8_genesis_test_say("^2zm8: started the stock Old School reset timer using the current 5-8 player count");
+        return;
+    }
+
+    if (scenario == "runes")
+    {
+        level scripts\shared\flag_shared::set("book_placed");
+        level scripts\shared\flag_shared::set("rune_circle_on");
+        level scripts\shared\flag_shared::set("book_runes_success");
+        wait 1;
+        portal = getent("rift_entrance_rune_portal", "targetname");
+        players = getplayers();
+
+        if (!isdefined(portal))
+        {
+            zm8_genesis_test_say("^1zm8: rune portal entity was not found");
+            return;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(portal.origin + ((i % 4) * 12, (i / 4) * 12, 8));
+            }
+        }
+
+        zm8_genesis_test_say("^2zm8: runes credited and every living player stacked on the stock arena portal");
+        return;
+    }
+
+    if (scenario == "arena1" || scenario == "arena2")
+    {
+        arrivals = scripts\codescripts\struct::get_array("dark_arena_teleport_hijack", "targetname");
+        players = getplayers();
+        participant = 0;
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (!isdefined(players[i]) || !isalive(players[i]) || players[i].sessionstate != "playing")
+            {
+                continue;
+            }
+
+            if (participant >= arrivals.size)
+            {
+                zm8_genesis_test_say("^1zm8: padded arena arrival array is still too small");
+                return;
+            }
+
+            players[i] thread scripts\zm\zm_genesis_arena::function_56668973(arrivals[participant]);
+            participant++;
+        }
+
+        zm8_genesis_test_say("^2zm8: invoked the stock arena arrival path for " + participant + " living player(s)");
+        return;
+    }
+
+    zm8_genesis_test_say("^1zm8: unknown Revelations scenario - run zm8_test help");
 }
 
 // Both arena-start paths directly index one dark_arena_teleport_hijack struct

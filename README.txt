@@ -47,6 +47,7 @@ INSTALLATION
       <your BO3 folder>\boiii\custom_scripts\zm_factory\zm8_factory.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_genesis\zm8_genesis.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_moon\zm8_moon.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_stalingrad\zm8_stalingrad.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
@@ -150,6 +151,39 @@ setup commands are cheats. Most 5-8 player fixes run automatically.
 Toggles reset to these defaults every new game. Turning allperks off
 mid-game keeps perks people already have; they lose them normally on
 downs.
+
+COMMAND-FIRST AUDIT HARNESS (zm8_test)
+--------------------------------------
+All zm8_test scenarios are TESTING CHEATS. They never run automatically.
+They put the team at an audited late step so nobody must complete an EE
+solo with bots. Start UNRANKED, then run:
+  spawnbot 7
+  zm8_godmode 1
+  zm8_test help
+
+The map-aware scenario lists are:
+  Der Eisendrache: bowteam, bows [element], bossready, boss
+  Origins: staffs [element], punchprep, punchfinish, portal
+  Gorod Krovi: dragon, trials, timer <5|10|15|20|50>, postquest,
+               koth, lockbox, lockbox2, sewer, boss
+  Shadows: swords [0|1|2], swordtwin, keepers, shadowman, tram, ending
+  Zetsubou: challengesprep, challengesfinish, plants, masamune,
+            zipline, pap, skull <1-4>, skullfinish <1-4>, skullroom,
+            elevator, boss
+  Moon: teleporter, hacker, next, stage <ss1|osc|sc|sc2|ss2>, ee,
+        wavegun, qed
+  Revelations: quest, trials, timer <5|10|15|20>, oldschool, runes,
+               arena1, arena2, thundergun, servant
+  Shangri-La: pap, next, stage <BaG|bttp|bttp2|DgCWf|LGS|OaFC|PtT|StD>,
+               ee, shrinkray
+  Ascension: lander, pressure, pressurefast, doll, reward
+  The Giant: teleporter
+  Shi No Numa: spawn, zipline
+  Kino der Toten: teleporter
+  Verruckt/Nacht: no late quest state; common spawn/round utilities suffice
+
+See MAP_AUDIT_TEST_PLAN.md for the exact command order, expected results,
+spectator variants and what each isolated test does and does not prove.
 
 DER EISENDRACHE COMMANDS (zm8_de_*)
 -----------------------------------
@@ -343,10 +377,9 @@ Zetsubou has several stock arrays and physical slots sized only for
 - Takeo boss waves: 5-8 use 4-player wave pacing.
 - Boss rescue teleport: players 5-8 get nearby offset destinations
   instead of overlapping their character twins.
-These are strictly 5-8 PLAYER COMPATIBILITY FIXES, not cheats. The
-generators, challenges, Skull quest, main easter egg and boss fight
-still must be completed normally. Zetsubou currently adds no console
-commands or quest skips.
+These are strictly 5-8 PLAYER COMPATIBILITY FIXES, not cheats. Normal
+play remains unchanged. Zetsubou's optional zm8_test scenarios are
+separate testing-only setup cheats.
 
 MOON COMMANDS (zm8_moon_*)
 --------------------------
@@ -358,8 +391,9 @@ breaks - every Moon command is a testing cheat.
 Cosmetic with 5-8: the PaP zombie-distraction POI needs every
 CONNECTED player inside the enclosure (a spectator disables the
 distraction; PaP itself works), and helmet visuals are shared by
-character-index twins. The hacker has no give command (equipment
-system is map-wired) - grab it in the labs normally.
+character-index twins. The command-only Moon helper can grant the Hacker
+through the stock equipment API and advance stock sidequest stages; it
+makes no automatic gameplay change.
 
 [TESTING CHEAT] zm8_moon_wavegun
                     give every living player the upgraded Zap Guns /
@@ -429,7 +463,7 @@ AUTOMATIC 5-8 COMPATIBILITY FIXES, not cheats:
   the four valid VO sets instead of playing an undefined alias.
 - The main quest pressure timer requires every living participant to
   stay on the real plate for the stock duration; spectators are excluded.
-There are no zm8_cosmodrome_* commands.
+Optional zm8_test scenarios isolate the lander, pressure and doll paths.
 
 THE GIANT AUTOMATIC FIX (zm_factory)
 ------------------------------------
@@ -437,15 +471,15 @@ AUTOMATIC 5-8 COMPATIBILITY FIX, not a cheat: the mainframe
 teleporter's stock staging loop only examines players 1-4. zm8
 includes everyone on the pad and safely shares the four physical
 staging/arrival spots, offsetting players 5-8. The rest of the map
-has no player-count gates; there are no zm8_factory_* commands.
+has no other player-count gates. zm8_test teleporter invokes this path.
 
 KINO DER TOTEN AUTOMATIC FIX (zm_theater)
 -----------------------------------------
 AUTOMATIC 5-8 COMPATIBILITY FIX, not a cheat: stock teleporter code
 indexes its four spots with the player number, so player 5 reads past
 the array. zm8 folds players 5-8 onto valid spots with nearby offsets
-at both ends. Kino has no main quest/player-count gate and adds no
-zm8_theater_* commands.
+at both ends. Kino has no main quest/player-count gate. The testing-only
+zm8_test teleporter command runs the trip and return directly.
 
 SHI NO NUMA AUTOMATIC FIX (zm_sumpf)
 ------------------------------------
@@ -453,7 +487,7 @@ AUTOMATIC 5-8 COMPATIBILITY FIXES, not cheats: opening placement
 directly indexes four spawn structs, so players 5-8 reuse them with
 nearby offsets. The zipline has four attachment tags, so each trip
 carries at most four and extras safely take the next/return trip.
-There are no zm8_sumpf_* commands.
+zm8_test spawn and zm8_test zipline isolate these paths.
 
 NACHT DER UNTOTEN
 -----------------

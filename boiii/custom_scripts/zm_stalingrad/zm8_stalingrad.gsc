@@ -10,7 +10,97 @@
 
 autoexec function zm8_stalingrad_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_stalingrad_test_command;
     println("zm8: Gorod Krovi 5-8 player challenge compatibility loaded");
+}
+
+function zm8_stalingrad_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+// TESTING CHEATS only. These invoke the real trial completion and reward
+// paths without requiring the host to grind rounds or bot-only objectives.
+function zm8_stalingrad_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_stalingrad_test_say("^3zm8_test: dragon | trials | timer <5|10|15|20|50> | postquest | koth | lockbox | lockbox2 | sewer | boss");
+        return;
+    }
+
+    if (scenario == "trials")
+    {
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (!isdefined(players[i]) || !isalive(players[i]) || players[i].sessionstate != "playing")
+            {
+                continue;
+            }
+
+            players[i] scripts\shared\flag_shared::set("flag_player_completed_challenge_1");
+            players[i] scripts\shared\flag_shared::set("flag_player_completed_challenge_2");
+            players[i] scripts\shared\flag_shared::set("flag_player_completed_challenge_3");
+        }
+
+        zm8_stalingrad_test_say("^2zm8: completed all assigned Gorod trials through their real player flags");
+        return;
+    }
+
+    if (scenario == "timer")
+    {
+        if (!isdefined(args) || args.size < 2)
+        {
+            zm8_stalingrad_test_say("^3zm8: usage: zm8_test timer <5|10|15|20|50>");
+            return;
+        }
+
+        completed_round = int(args[1]);
+
+        if (completed_round != 5 && completed_round != 10 && completed_round != 15 && completed_round != 20 && completed_round != 50)
+        {
+            zm8_stalingrad_test_say("^1zm8: Gorod timer round must be 5, 10, 15, 20 or 50");
+            return;
+        }
+
+        luinotifyevent(&"zombie_time_attack_notification", 2, completed_round, level.players.size);
+        playsoundatposition("zmb_stalingrad_time_trial_complete", (0, 0, 0));
+        level thread scripts\zm\zm_stalingrad_timer::function_cc8ae246(completed_round);
+
+        if (completed_round == 20)
+        {
+            level notify(#"hash_399599c1");
+        }
+
+        zm8_stalingrad_test_say("^2zm8: fired the stock Gorod time-trial reward for round " + completed_round);
+        return;
+    }
+
+    if (scenario == "postquest")
+    {
+        level.var_2801f599 = 0;
+        level thread scripts\zm\zm_stalingrad_timer::function_3d5b5002();
+        zm8_stalingrad_test_say("^2zm8: fired the stock post-quest all-perks threshold path");
+        return;
+    }
+
+    zm8_stalingrad_test_say("^1zm8: unknown Gorod scenario - run zm8_test help");
 }
 
 // Gorod's round 5/10/15/20/50 time trials have switch cases only for 1-4

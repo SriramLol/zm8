@@ -16,6 +16,7 @@
 #using scripts\zm\_zm_ai_thrasher;
 #using scripts\zm\_zm_utility;
 #using scripts\zm\zm_island_challenges;
+#using scripts\zm\zm_island_main_ee_quest;
 #using scripts\zm\zm_island_pap_quest;
 #using scripts\zm\zm_island_skullweapon_quest;
 #using scripts\zm\zm_island_takeo_fight;
@@ -23,7 +24,291 @@
 
 autoexec function zm8_island_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_island_test_command;
     println("zm8: Zetsubou 5-8 player compatibility detours loaded");
+}
+
+function zm8_island_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_island_test_is_bot(player)
+{
+    return isdefined(player) && isdefined(player.pers) &&
+        isdefined(player.pers["isBot"]) && player.pers["isBot"];
+}
+
+function zm8_island_test_complete_challenges(player)
+{
+    if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+    {
+        return;
+    }
+
+    player scripts\shared\flag_shared::set("flag_player_completed_challenge_1");
+    player scripts\shared\flag_shared::set("flag_player_completed_challenge_2");
+    player scripts\shared\flag_shared::set("flag_player_completed_challenge_3");
+}
+
+// TESTING CHEATS only. Each case starts the real compatibility-sensitive
+// stock routine directly or supplies bot contributions through stock flags.
+function zm8_island_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_island_test_say("^3zm8_test: challengesprep | challengesfinish | plants | masamune | zipline | pap | skull <1-4> | skullfinish <1-4> | skullroom | elevator | boss");
+        return;
+    }
+
+    if (scenario == "challengesprep")
+    {
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (zm8_island_test_is_bot(players[i]))
+            {
+                zm8_island_test_complete_challenges(players[i]);
+            }
+        }
+
+        zm8_island_test_say("^2zm8: bot challenge contributions completed; host remains unfinished");
+        return;
+    }
+
+    if (scenario == "challengesfinish")
+    {
+        players = getplayers();
+
+        if (players.size > 0)
+        {
+            zm8_island_test_complete_challenges(players[0]);
+        }
+
+        zm8_island_test_say("^2zm8: host challenge contribution completed through the real player flags");
+        return;
+    }
+
+    if (scenario == "zipline")
+    {
+        level scripts\shared\flag_shared::set("power_on");
+        level scripts\shared\flag_shared::set("all_challenges_completed");
+        level scripts\shared\flag_shared::set("zipline_lightning_charge");
+        spots = scripts\codescripts\struct::get_array("transport_zip_line", "targetname");
+        players = getplayers();
+
+        if (!isdefined(spots) || spots.size < 1)
+        {
+            zm8_island_test_say("^1zm8: Zetsubou zipline controls were not found");
+            return;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(spots[0].origin + ((i % 4) * 18, (i / 4) * 18, 8));
+                players[i].score = 50000;
+            }
+        }
+
+        zm8_island_test_say("^2zm8: charged zipline unlocked; living players moved to its first control");
+        return;
+    }
+
+    if (scenario == "plants")
+    {
+        spots = level.a_s_planting_spots;
+        players = getplayers();
+
+        if (!isdefined(spots) || spots.size < 1)
+        {
+            zm8_island_test_say("^1zm8: planting spots are not initialized yet");
+            return;
+        }
+
+        participant = 0;
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (!isdefined(players[i]) || !isalive(players[i]) || players[i].sessionstate != "playing")
+            {
+                continue;
+            }
+
+            players[i] scripts\shared\clientfield_shared::set_to_player("has_island_seed", 1);
+            players[i] setorigin(spots[participant % spots.size].origin + (32, (participant / spots.size) * 18, 8));
+            participant++;
+        }
+
+        zm8_island_test_say("^2zm8: every living player received a seed and was moved to a planting spot");
+        return;
+    }
+
+    if (scenario == "masamune")
+    {
+        players = getplayers();
+        masamune = getweapon("hero_mirg2000_upgraded");
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] giveweapon(masamune);
+                players[i] setweaponammostock(masamune, masamune.maxammo);
+                players[i] setweaponammoclip(masamune, masamune.clipsize);
+            }
+        }
+
+        zm8_island_test_say("^2zm8: upgraded Masamune given to every living player for ownership testing");
+        return;
+    }
+
+    if (scenario == "pap")
+    {
+        level scripts\shared\flag_shared::set("penstock_debris_cleared");
+        level thread scripts\zm\zm_island_pap_quest::defend_start();
+        zm8_island_test_say("^2zm8: started the real Pack-a-Punch valve defense directly");
+        return;
+    }
+
+    if (scenario == "skull" || scenario == "skullfinish")
+    {
+        if (!isdefined(args) || args.size < 2)
+        {
+            zm8_island_test_say("^3zm8: usage: zm8_test " + scenario + " <1-4>");
+            return;
+        }
+
+        ritual = int(args[1]);
+
+        if (ritual < 1 || ritual > 4)
+        {
+            zm8_island_test_say("^1zm8: Skull ritual must be 1 through 4");
+            return;
+        }
+
+        if (scenario == "skullfinish")
+        {
+            level scripts\shared\flag_shared::set("skullquest_ritual_complete" + ritual);
+            zm8_island_test_say("^2zm8: ended Skull ritual " + ritual + " through its stock completion flag");
+            return;
+        }
+
+        if (!isdefined(level.var_a576e0b9) || !isdefined(level.var_a576e0b9[ritual]))
+        {
+            zm8_island_test_say("^1zm8: Skull ritual structs are not initialized yet");
+            return;
+        }
+
+        level.var_a576e0b9[ritual] thread scripts\zm\zm_island_skullweapon_quest::function_ff1550bd();
+        zm8_island_test_say("^2zm8: started the real Skull ritual " + ritual + " balance routine");
+        return;
+    }
+
+    if (scenario == "skullroom")
+    {
+        if (!isdefined(level.var_55c48492))
+        {
+            zm8_island_test_say("^1zm8: final Skull-room entities are not initialized yet");
+            return;
+        }
+
+        level thread scripts\zm\zm_island_skullweapon_quest::function_ef5b1df5();
+        zm8_island_test_say("^2zm8: started the real final Skull-room defense directly");
+        return;
+    }
+
+    if (scenario == "elevator")
+    {
+        for (gear = 1; gear <= 3; gear++)
+        {
+            level scripts\shared\flag_shared::set("elevator_part_gear" + gear + "_found");
+            level scripts\shared\flag_shared::set("elevator_part_gear" + gear + "_placed");
+        }
+
+        level thread scripts\zm\zm_island_main_ee_quest::elevator_init();
+        wait 0.5;
+        cages = getentarray("easter_egg_elevator_cage", "targetname");
+        players = getplayers();
+
+        if (!isdefined(cages) || cages.size < 1)
+        {
+            zm8_island_test_say("^1zm8: Zetsubou elevator cage was not found");
+            return;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(cages[0].origin + ((i % 4) * 14, (i / 4) * 14, 16));
+            }
+        }
+
+        zm8_island_test_say("^2zm8: elevator repaired and living players moved into its cage");
+        return;
+    }
+
+    if (scenario == "boss")
+    {
+        level scripts\shared\flag_shared::set("flag_init_takeo_fight");
+        deadline = gettime() + 30000;
+
+        while (!isdefined(level.var_bbdc1f95) && gettime() < deadline)
+        {
+            wait 0.25;
+        }
+
+        if (!isdefined(level.var_bbdc1f95))
+        {
+            zm8_island_test_say("^1zm8: Takeo fight did not initialize within 30 seconds");
+            return;
+        }
+
+        arrivals = scripts\codescripts\struct::get_array("s_takeofight_spawnpt", "targetname");
+        players = getplayers();
+        masamune = getweapon("hero_mirg2000_upgraded");
+
+        if (!isdefined(arrivals) || arrivals.size < 1)
+        {
+            zm8_island_test_say("^1zm8: Takeo fight arrivals were not found");
+            return;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (!isdefined(players[i]) || !isalive(players[i]) || players[i].sessionstate != "playing")
+            {
+                continue;
+            }
+
+            players[i] giveweapon(masamune);
+            players[i] setweaponammostock(masamune, masamune.maxammo);
+            players[i] setweaponammoclip(masamune, masamune.clipsize);
+            players[i] setorigin(arrivals[i % arrivals.size].origin + (0, (i / arrivals.size) * 32, 8));
+        }
+
+        zm8_island_test_say("^2zm8: Takeo fight initialized; players moved inside with upgraded Masamunes");
+        return;
+    }
+
+    zm8_island_test_say("^1zm8: unknown Zetsubou scenario - run zm8_test help");
 }
 
 // The stock challenge pools contain 5/6/5 entries and remove an entry for

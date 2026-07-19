@@ -20,7 +20,166 @@
 
 autoexec function zm8_cosmodrome_helper_loaded()
 {
+    level.zm8_test_handler = &zm8_cosmodrome_test_command;
     println("zm8: Ascension 5-8 player lander/quest compatibility loaded");
+}
+
+function zm8_cosmodrome_test_say(message)
+{
+    if (isdefined(level.zm8_test_announce))
+    {
+        level [[level.zm8_test_announce]](message);
+    }
+    else
+    {
+        println(message);
+    }
+}
+
+function zm8_cosmodrome_test_command(args)
+{
+    scenario = "help";
+
+    if (isdefined(args) && args.size > 0)
+    {
+        scenario = tolower(args[0]);
+    }
+
+    if (scenario == "help")
+    {
+        zm8_cosmodrome_test_say("^3zm8_test: lander | pressure | pressurefast | doll | reward");
+        return;
+    }
+
+    if (scenario == "lander")
+    {
+        level scripts\shared\flag_shared::set("power_on");
+        lander = getent("lander", "targetname");
+
+        if (!isdefined(lander) || !isdefined(lander.station))
+        {
+            zm8_cosmodrome_test_say("^1zm8: lander is not initialized yet");
+            return;
+        }
+
+        rider_trigger = getent(lander.station + "_riders", "targetname");
+        players = getplayers();
+
+        if (!isdefined(rider_trigger))
+        {
+            zm8_cosmodrome_test_say("^1zm8: current lander rider trigger was not found");
+            return;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(rider_trigger.origin + ((i % 4) * 18, (i / 4) * 18, 8));
+                players[i].score = 50000;
+            }
+        }
+
+        zm8_cosmodrome_test_say("^2zm8: players moved onto the current lander platform with power and points");
+        return;
+    }
+
+    if (scenario == "pressure" || scenario == "pressurefast")
+    {
+        if (level scripts\shared\flag_shared::get("pressure_sustained"))
+        {
+            zm8_cosmodrome_test_say("^3zm8: pressure step already completed; restart the map to retest it");
+            return;
+        }
+
+        area = scripts\codescripts\struct::get("pressure_pad", "targetname");
+
+        if (!isdefined(area))
+        {
+            zm8_cosmodrome_test_say("^1zm8: Gersh pressure-pad struct was not found");
+            return;
+        }
+
+        if (scenario == "pressurefast")
+        {
+            level thread zm8_cosmodrome_test_pressure_fast(area);
+        }
+        else
+        {
+            level thread scripts\zm\zm_cosmodrome_eggs::pressure_plate_event();
+        }
+
+        wait 0.25;
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(area.origin + ((i % 4) * 20, (i / 4) * 20, 8));
+            }
+        }
+
+        if (scenario == "pressurefast")
+        {
+            zm8_cosmodrome_test_say("^2zm8: 10-second pressure compatibility test started; living players stacked on it");
+        }
+        else
+        {
+            zm8_cosmodrome_test_say("^2zm8: real 120-second Gersh pressure timer started; living players stacked on it");
+        }
+
+        return;
+    }
+
+    if (scenario == "doll")
+    {
+        doll = getent("doll_egg_0", "targetname");
+        players = getplayers();
+
+        if (!isdefined(doll))
+        {
+            zm8_cosmodrome_test_say("^1zm8: Matryoshka test trigger was not found");
+            return;
+        }
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                players[i] setorigin(doll.origin + (48 + ((i % 4) * 12), (i / 4) * 16, 0));
+            }
+        }
+
+        zm8_cosmodrome_test_say("^2zm8: players moved to Matryoshka trigger 0; use it with slots 5-8");
+        return;
+    }
+
+    if (scenario == "reward")
+    {
+        level thread scripts\zm\zm_cosmodrome_eggs::wait_for_gersh_vox();
+        zm8_cosmodrome_test_say("^2zm8: stock Gersh reward starts in 12.5 seconds for every connected player");
+        return;
+    }
+
+    zm8_cosmodrome_test_say("^1zm8: unknown Ascension scenario - run zm8_test help");
+}
+
+// Short testing-only wrapper around the real, detoured area timer. The normal
+// pressure command retains the stock 120 seconds; this one isolates the
+// living-player participation check without making a tester stand still for
+// two minutes.
+function zm8_cosmodrome_test_pressure_fast(area)
+{
+    trig = spawn("trigger_radius", area.origin, 0, 300, 100);
+    trig scripts\zm\zm_cosmodrome_eggs::area_timer(10);
+
+    if (isdefined(trig))
+    {
+        trig delete();
+    }
+
+    zm8_cosmodrome_test_say("^2zm8: fast pressure timer completed through the real compatibility detour");
 }
 
 function zm8_cosmodrome_all_active_on_plate(plate)
