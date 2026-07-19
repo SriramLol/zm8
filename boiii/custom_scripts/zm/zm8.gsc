@@ -1021,7 +1021,10 @@ function zm8_de_give_base_bow()
 
         if (primaries.size >= limit)
         {
-            self scripts\zm\_zm_weapons::weapon_take(self getcurrentweapon());
+            // never take getcurrentweapon() blindly - ripping a held hero
+            // gadget/grenade out of the engine's watchers is the native
+            // ScrVar_ReleaseValue crash (see zm8_take_primary_for_slot)
+            self zm8_take_primary_for_slot();
         }
 
         self scripts\zm\_zm_weapons::weapon_give(w_bow, 0, 0, 1);
@@ -1600,7 +1603,17 @@ function zm8_de_replant_guard()
     if (!(isdefined(self.b_gravity_trap_spikes_in_ground) && self.b_gravity_trap_spikes_in_ground))
     {
         wpn = getweapon("hero_gravityspikes_melee");
-        self gadgetpowerset(self gadgetgetslot(wpn), 100);
+
+        // gadgetgetslot returns -1 if the gadget isn't registered (e.g. the
+        // DG-4 was lost by fight start) - -1 into gadgetpowerset is a native
+        // out-of-bounds write (the ScrVar crash signature)
+        n_slot = self gadgetgetslot(wpn);
+
+        if (n_slot >= 0)
+        {
+            self gadgetpowerset(n_slot, 100);
+        }
+
         zm8_announce("^3zm8: " + self.name + "'s first plant got refunded by the fight start - plant again now");
     }
 }
@@ -1743,8 +1756,19 @@ function zm8_godmode_monitor()
             }
         }
 
-        if (!(isdefined(player.laststand) && player.laststand))
+        // top up perks only every ~2s: a perk that cannot apply on this map
+        // would otherwise re-thread give_perk 10x/sec forever - constant
+        // script-variable churn on top of an 8-player game
+        if (!isdefined(level.zm8_godmode_perk_ticks))
         {
+            level.zm8_godmode_perk_ticks = 0;
+        }
+
+        level.zm8_godmode_perk_ticks++;
+
+        if (level.zm8_godmode_perk_ticks >= 20 && !(isdefined(player.laststand) && player.laststand))
+        {
+            level.zm8_godmode_perk_ticks = 0;
             level.perk_purchase_limit = 100;
             perks = zm8_perk_list();
 
@@ -1852,6 +1876,8 @@ function zm8_autospawn_monitor()
 {
     level endon("end_game");
 
+    level thread zm8_round_respawn_monitor();
+
     while (true)
     {
         if (isdefined(level.zm8_autospawn) && level.zm8_autospawn)
@@ -1860,6 +1886,27 @@ function zm8_autospawn_monitor()
         }
 
         wait 3;
+    }
+}
+
+// Stock zombies brings bled-out players back when the next round starts, but
+// with 5-8 players that respawn was observed NOT catching everyone (they sat
+// in spectate until a manual zm8_spawn). Guarantee it: at every round start,
+// force-spawn ALL waiting spectators, bled-out included - which is exactly
+// the stock death penalty contract (you sit out the rest of the round only).
+function zm8_round_respawn_monitor()
+{
+    level endon("end_game");
+
+    while (true)
+    {
+        level waittill("start_of_round");
+
+        if (isdefined(level.zm8_autospawn) && level.zm8_autospawn)
+        {
+            wait 1;
+            level thread zm8_force_spawn_spectators(false, true);
+        }
     }
 }
 
@@ -1919,6 +1966,10 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
             player thread [[level.givecustomcharacters]]();
         }
 
+        // players 5-8 were observed spawning straight into laststand (spawn
+        // point fall damage / instant zombie hits) - shield the first moments
+        player thread zm8_spawn_protection();
+
         count++;
         wait 0.25;
     }
@@ -1930,6 +1981,26 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
     {
         zm8_announce("^3zm8: no spectators waiting to spawn");
     }
+}
+
+// 3 seconds of damage immunity right after a forced spawn, so the spawn
+// itself (fall damage, zombies camping the point) can't instantly down the
+// player. Skips turning immunity back off for the godmode host.
+function zm8_spawn_protection()
+{
+    self endon("disconnect");
+    level endon("end_game");
+
+    self enableinvulnerability();
+    wait 3;
+
+    if (isdefined(level.zm8_godmode) && level.zm8_godmode
+        && isdefined(level.zm8_godmode_host) && level.zm8_godmode_host == self)
+    {
+        return;
+    }
+
+    self disableinvulnerability();
 }
 
 // While enabled, every player is topped up to all perks the map registered,
