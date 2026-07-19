@@ -309,6 +309,14 @@ stack tightly on it.
                     give every living player the upgraded Apothicon
                     Servant.
 
+VERRUCKT
+--------
+Audited - needs nothing. No quest, no map wonder weapon, no
+per-player-count tables. The split spawn (two per side) safely
+falls back for players 5-8 (they spawn on the first point of one
+side). The global zm8 systems cover the whole map; there are no
+zm8_asylum_* commands.
+
 
 KNOWN LIMITATIONS
 -----------------

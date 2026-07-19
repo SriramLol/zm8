@@ -165,6 +165,10 @@ One thing to know with 5–8 (documented, no fix needed): the rift into the boss
 | `zm8_rev_thundergun` | **Testing cheat:** give every living player the upgraded Thundergun with full ammo |
 | `zm8_rev_servant` | **Testing cheat:** give every living player the upgraded Apothicon Servant |
 
+### Verrückt
+
+Audited — **needs nothing**. No quest, no map-specific wonder weapon, no per-player-count tables. The split spawn (two per side) safely falls back for players 5–8: they spawn on the first point of one side. The global zm8 systems (8-cap, character fallback, gums) cover the whole map, so there are no `zm8_asylum_*` commands.
+
 ## Known limitations
 
 - Scoreboard/HUD is built for 4 players; extras may not show on some screens (gameplay unaffected)

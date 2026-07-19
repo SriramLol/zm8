@@ -190,6 +190,12 @@ function zm8_powerup_pool_fixer()
 // Note for 5-8: the rift opens when every living player stands within 84
 // units of the rune portal - everyone must stack tightly on it.
 //
+// Verruckt (zm_asylum) - audited, NO map-specific code needed:
+//   no quest, no map wonder weapon, no scaling tables. The split spawn
+//   assigns 4 numbered points (2 per side); players 5-8 fall back to the
+//   first point, which is safe. Character assignment falls back to index 0.
+//   The global zm8 systems cover everything on this map.
+//
 // Moon (zm_moon) - guarded by mapname, no-ops elsewhere:
 //   zm8_moon_wavegun      - TESTING CHEAT: give everyone the upgraded Wave
 //                           Gun / Zap Guns
