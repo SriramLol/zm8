@@ -1909,6 +1909,16 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
 
         zm8_announce("^2zm8: spawning in " + player.name);
         player scripts\zm\_zm::spectator_respawn_player();
+
+        // the forced respawn path skips the map's character/model assignment
+        // (visible as invisible bodies on force-spawned bots). Every map
+        // stores its assigner as a level function pointer - run it like the
+        // stock spawn flow would.
+        if (isdefined(level.givecustomcharacters))
+        {
+            player thread [[level.givecustomcharacters]]();
+        }
+
         count++;
         wait 0.25;
     }

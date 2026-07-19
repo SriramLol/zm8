@@ -151,11 +151,44 @@ local function guardListingWidget(className)
 end
 
 pcall(function()
-	-- make sure the widget classes exist before we wrap them (the scoreboard
-	-- modules may not be required yet at frontend init)
+	-- make sure the widget classes exist before we wrap them. LUI module
+	-- names are CASE-SENSITIVE and the shipped path uses mixed case - the
+	-- original lowercase require failed silently and left the guard dead.
+	pcall(function() require("ui.uieditor.widgets.HUD.ZM_Score.ZMScr_ListingLg") end)
+	pcall(function() require("ui.uieditor.widgets.HUD.ZM_Score.ZMScr_ListingSm") end)
+	-- tolerate either casing across client builds
 	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr_listinglg") end)
 	pcall(function() require("ui.uieditor.widgets.hud.zm_score.zmscr_listingsm") end)
 
 	guardListingWidget("ZMScr_ListingLg")
 	guardListingWidget("ZMScr_ListingSm")
+
+	-- if the classes still are not defined in this UI VM yet, retry once the
+	-- scoreboard menu actually opens: hook the menu factory table lazily via
+	-- a metatable-free poll driven by LUI's own timer if available
+	if (not CoD.ZMScr_ListingLg) and LUI and LUI.UITimer and LUI.roots then
+		pcall(function()
+			local attempts = 0
+			local root = LUI.roots.UIRoot0
+
+			if not root then
+				return
+			end
+
+			local poller = LUI.UITimer.new(500, "zm8_scoreguard_poll")
+			root:addElement(poller)
+			root:registerEventHandler("zm8_scoreguard_poll", function(element, event)
+				attempts = attempts + 1
+
+				if CoD.ZMScr_ListingLg then
+					guardListingWidget("ZMScr_ListingLg")
+					guardListingWidget("ZMScr_ListingSm")
+				end
+
+				if CoD.ZMScr_ListingLg or attempts > 120 then
+					poller:close()
+				end
+			end)
+		end)
+	end
 end)
