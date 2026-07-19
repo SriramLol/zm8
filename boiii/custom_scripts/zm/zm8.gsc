@@ -1933,20 +1933,10 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
     count = 0;
     players = getplayers();
 
-    // an alive teammate to spawn next to: the fallback spawn structs for
-    // slots 5-8 can drop players from the air - instant fall-damage
-    // laststand, which also interrupts the model attach (downed + invisible)
-    anchor = undefined;
-
-    for (i = 0; i < players.size; i++)
-    {
-        if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
-        {
-            anchor = players[i];
-            break;
-        }
-    }
-
+    // a live teammate to spawn next to (fallback spawn structs for slots
+    // 5-8 can drop players from the air = fall-damage laststand + a broken
+    // model attach) is re-picked per iteration inside the loop below, so a
+    // wait() can never leave us holding a stale/freed anchor reference.
     for (i = 0; i < players.size; i++)
     {
         player = players[i];
@@ -1970,6 +1960,20 @@ function zm8_force_spawn_spectators(announce_if_none, include_bled_out)
 
         zm8_announce("^2zm8: spawning in " + player.name);
         player scripts\zm\_zm::spectator_respawn_player();
+
+        // re-pick a live anchor every iteration: reusing one selected before
+        // the wait()s could touch a freed/downed entity (.origin on a bad
+        // ref is a native crash)
+        anchor = undefined;
+
+        for (k = 0; k < players.size; k++)
+        {
+            if (isdefined(players[k]) && isalive(players[k]) && players[k].sessionstate == "playing" && players[k] != player)
+            {
+                anchor = players[k];
+                break;
+            }
+        }
 
         // put them on solid ground near a teammate instead of wherever the
         // fallback spawn struct points - in a ring, NOT on top of the anchor
@@ -2484,13 +2488,13 @@ function zm8_zombie_counter()
     label_spawning = zm8_counter_elem(10);
     label_spawning setText("Spawning:");
 
-    value_spawning = zm8_counter_elem(108);
+    value_spawning = zm8_counter_elem(78);
     value_spawning setValue(0);
 
-    label_alive = zm8_counter_elem(160);
+    label_alive = zm8_counter_elem(120);
     label_alive setText("Alive:");
 
-    value_alive = zm8_counter_elem(225);
+    value_alive = zm8_counter_elem(163);
     value_alive setValue(0);
 
     last_spawning = -1;
