@@ -245,6 +245,76 @@ pcall(function()
 		.. " ctorWrapped=" .. tostring(CoD.ZMScr ~= nil and CoD.ZMScr.zm8_extra_rows == true))
 
 	-- ------------------------------------------------------------------
+	-- Score colors for players 5-8 AND the real fix for the LUI error.
+	--
+	-- ZombieClientScoreboardColor/GlowColor read the engine color dvars
+	-- cg_ScoresColor_Gamertag_<clientNum>, which only exist for 0-3. For
+	-- clients 4-7 the dvar lookup returns a boolean and the glow variant
+	-- multiplies it ("operator * is not supported for boolean * number" -
+	-- the exact error thrown since the first 5+ game), while the plain
+	-- variant leaves rows colorless. Wrap both globals: clients 4-7 get
+	-- their own colors, anything unexpected degrades to white.
+	local ZM8_EXTRA_COLORS = {
+		[4] = { 1.00, 0.55, 0.10 }, -- orange
+		[5] = { 0.75, 0.35, 1.00 }, -- purple
+		[6] = { 1.00, 0.45, 0.70 }, -- pink
+		[7] = { 0.25, 0.95, 0.85 }, -- teal
+	}
+
+	local colorWrapsInstalled = false
+
+	local function installColorWraps()
+		if colorWrapsInstalled then
+			return true
+		end
+
+		local origColor = ZombieClientScoreboardColor
+		local origGlow = ZombieClientScoreboardGlowColor
+
+		if type(origColor) ~= "function" or type(origGlow) ~= "function" then
+			return false
+		end
+
+		ZombieClientScoreboardColor = function(clientNum)
+			local c = ZM8_EXTRA_COLORS[clientNum]
+
+			if c then
+				return c[1], c[2], c[3]
+			end
+
+			local ok, r, g, b = pcall(origColor, clientNum)
+
+			if ok and type(r) == "number" then
+				return r, g, b
+			end
+
+			return 1, 1, 1
+		end
+
+		ZombieClientScoreboardGlowColor = function(clientNum)
+			local c = ZM8_EXTRA_COLORS[clientNum]
+
+			if c then
+				return c[1] * 0.75, c[2] * 0.75, c[3] * 0.75
+			end
+
+			local ok, r, g, b = pcall(origGlow, clientNum)
+
+			if ok and type(r) == "number" then
+				return r, g, b
+			end
+
+			return 0.75, 0.75, 0.75
+		end
+
+		colorWrapsInstalled = true
+		dbg("scoreboard color wraps installed (clients 4-7 colored, glow error fixed)")
+		return true
+	end
+
+	pcall(installColorWraps)
+
+	-- ------------------------------------------------------------------
 	-- Live-instance injection: if the HUD widget was ALREADY constructed
 	-- before this script ran (observed in-game: constructor wrap had no
 	-- effect), find the live ZMScr element in the UI trees by its id and
@@ -336,6 +406,49 @@ pcall(function()
 		return ok
 	end
 
+	-- 8-row TAB scoreboard: the zombies match scoreboard is
+	-- ScoreboardWidgetCP whose player list is hard-set to 4 visible slots
+	-- (Team1:setVerticalCount(4)); rows are 25px so 8 slots fit the same
+	-- area without any scaling. Patch the live instance.
+	local function patchTabScoreboard()
+		if not (LUI and LUI.roots) then
+			return false
+		end
+
+		local patched = false
+
+		for _, rootName in ipairs({ "UIRoot0", "UIRootFull", "UIRoot1" }) do
+			local root = LUI.roots[rootName]
+
+			if root then
+				local found = {}
+				pcall(function() findInstances(root, "ScoreboardWidgetCP", 0, found) end)
+
+				for i = 1, #found do
+					local sb = found[i]
+
+					if not sb.zm8_tab_patched then
+						local ok = pcall(function()
+							sb.ScoreboardFactionScoresListCP0.Team1:setVerticalCount(8)
+						end)
+
+						if ok then
+							sb.zm8_tab_patched = true
+							patched = true
+							dbg("TAB scoreboard extended to 8 slots under " .. rootName)
+						else
+							dbg("TAB scoreboard patch failed (structure mismatch)")
+						end
+					else
+						patched = true
+					end
+				end
+			end
+		end
+
+		return patched
+	end
+
 	local function tryInjectLive()
 		if not (LUI and LUI.roots) then
 			return false
@@ -361,6 +474,9 @@ pcall(function()
 				end
 			end
 		end
+
+		pcall(installColorWraps)
+		pcall(patchTabScoreboard)
 
 		return injected
 	end
@@ -396,8 +512,9 @@ pcall(function()
 				local done = false
 				pcall(function() done = tryInjectLive() end)
 
-				if done or attempts > 300 then
-					dbg("poller finished, attempts=" .. attempts .. " injected=" .. tostring(done))
+				if (done and colorWrapsInstalled) or attempts > 300 then
+					dbg("poller finished, attempts=" .. attempts .. " injected=" .. tostring(done)
+						.. " colors=" .. tostring(colorWrapsInstalled))
 					poller:close()
 				end
 			end)
