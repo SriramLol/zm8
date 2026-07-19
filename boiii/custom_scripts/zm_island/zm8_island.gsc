@@ -7,6 +7,7 @@
 #using scripts\codescripts\struct;
 #using scripts\shared\ai\zombie_utility;
 #using scripts\shared\array_shared;
+#using scripts\shared\callbacks_shared;
 #using scripts\shared\clientfield_shared;
 #using scripts\shared\exploder_shared;
 #using scripts\shared\flag_shared;
@@ -139,6 +140,72 @@ function zm8_island_setup_challenges(board_number, player_number)
         {
             challenge_trigger scripts\zm\zm_island_challenges::function_72a5d5e5(player_number, challenge_indices, look_at_points);
         }
+    }
+}
+
+// Stock counts completions against level.players.size, so a spectator who
+// cannot perform trials blocks the all_challenges_completed flag used by the
+// electric-shield/zipline quest step. Retain the normal completion notifies
+// and require all living participants to finish all three assigned trials.
+// This is event-driven and ends as soon as the stock flag is set.
+detour scripts\zm\zm_island_challenges::all_challenges_completed()
+{
+    level.var_c28313cd = 0;
+    scripts\shared\callbacks_shared::on_disconnect(&zm8_island_challenge_disconnect_check);
+
+    while (!level scripts\shared\flag_shared::get("all_challenges_completed"))
+    {
+        level waittill(#"hash_41370469");
+        level.var_c28313cd++;
+        zm8_island_check_active_challenge_gate();
+    }
+}
+
+function zm8_island_challenge_disconnect_check()
+{
+    level thread zm8_island_delayed_challenge_gate_check();
+}
+
+function zm8_island_delayed_challenge_gate_check()
+{
+    wait 0.05;
+    zm8_island_check_active_challenge_gate();
+}
+
+function zm8_island_check_active_challenge_gate()
+{
+    if (level scripts\shared\flag_shared::get("all_challenges_completed"))
+    {
+        return;
+    }
+
+    players = getplayers();
+    active_count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        active_count++;
+
+        if (!player scripts\shared\flag_shared::get("flag_player_completed_challenge_1") ||
+            !player scripts\shared\flag_shared::get("flag_player_completed_challenge_2") ||
+            !player scripts\shared\flag_shared::get("flag_player_completed_challenge_3"))
+        {
+            return;
+        }
+    }
+
+    if (active_count > 0)
+    {
+        level scripts\shared\flag_shared::set("all_challenges_completed");
+        level thread scripts\zm\zm_island_challenges::function_397b26ee();
+        println("zm8: every active Zetsubou player completed all three trials");
     }
 }
 

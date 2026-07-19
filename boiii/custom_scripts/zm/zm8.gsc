@@ -3939,10 +3939,11 @@ function zm8_gk_player_can_participate(player)
     return isdefined(player) && isalive(player) && player.sessionstate == "playing";
 }
 
-// EE network-console (KOTH) defense: the step only completes once EVERY
-// connected player has used a terminal, which a spectator can never do.
-// Credit any player the game would not accept as a participant. The flag
-// only exists on players after the map initializes it, hence the guard.
+// EE network-console (KOTH) defense and both Dragon Strike lockbox stages
+// complete only once EVERY connected player has interacted. A spectator can
+// never do so. Credit only players the game would not accept as participants;
+// living players must still perform each stock interaction. The flags only
+// exist after their map systems initialize them, hence the guards.
 function zm8_gk_koth_assist()
 {
     level endon("end_game");
@@ -3965,6 +3966,22 @@ function zm8_gk_koth_assist()
             {
                 player scripts\shared\flag_shared::set("ee_koth_terminal_used");
                 println("zm8: credited " + player.name + " (not in play) for the koth terminal step");
+            }
+
+            if (isdefined(player) && isdefined(player.flag)
+                && isdefined(player.flag["dragon_strike_lockbox_trigger_used"])
+                && !player.flag["dragon_strike_lockbox_trigger_used"])
+            {
+                player scripts\shared\flag_shared::set("dragon_strike_lockbox_trigger_used");
+                println("zm8: credited " + player.name + " (not in play) for the Dragon Strike lockbox");
+            }
+
+            if (isdefined(player) && isdefined(player.flag)
+                && isdefined(player.flag["dragon_strike_lockbox_upgraded_trigger_used"])
+                && !player.flag["dragon_strike_lockbox_upgraded_trigger_used"])
+            {
+                player scripts\shared\flag_shared::set("dragon_strike_lockbox_upgraded_trigger_used");
+                println("zm8: credited " + player.name + " (not in play) for the upgraded Dragon Strike lockbox");
             }
         }
 

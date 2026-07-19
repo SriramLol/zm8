@@ -23,8 +23,59 @@
 #using scripts\zm\_zm_unitrigger;
 #using scripts\zm\_zm_utility;
 #using scripts\zm\_zm_weap_elemental_bow;
+#using scripts\zm\zm_castle_ee_bossfight;
 #using scripts\zm\zm_castle_vo;
 #using scripts\zm\zm_castle_weap_quest_upgrade;
+
+// The boss ritual has four physical Ragnarok pads, but stock waits for its
+// claimed-pad count to equal every connected player (including spectators).
+// Preserve the simultaneous real-plant ritual: every living participant is
+// required up to the four authored pads, and four real pads are required for
+// a 5-8 player group. No flag or quest stage is skipped.
+detour scripts\zm\zm_castle_ee_bossfight::boss_fight_ready()
+{
+    level endon(#"boss_fight_begin");
+    level.var_b366f2dc = 0;
+    pads = getentarray("boss_gravity_spike_start_area", "targetname");
+
+    foreach (pad in pads)
+    {
+        pad.b_claimed = 0;
+        pad thread scripts\zm\zm_castle_ee_bossfight::function_1c249965();
+    }
+
+    required = 0;
+
+    while (required < 1 || level.var_b366f2dc < required)
+    {
+        required = 0;
+        players = getplayers();
+
+        for (i = 0; i < players.size; i++)
+        {
+            if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+            {
+                required++;
+            }
+        }
+
+        if (required > pads.size)
+        {
+            required = pads.size;
+        }
+
+        wait 0.05;
+    }
+
+    wait 0.75;
+
+    foreach (player in level.players)
+    {
+        player.var_d725b0f2 = undefined;
+    }
+
+    level scripts\shared\flag_shared::set("boss_fight_begin");
+}
 
 function zm8_de_is_bow_team_contributor(player, element)
 {

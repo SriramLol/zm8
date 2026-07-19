@@ -42,12 +42,17 @@ INSTALLATION
    folder structure. Merge folders if asked. You should end up with:
 
       <your BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_castle\zm8_castle.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_factory\zm8_factory.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_genesis\zm8_genesis.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_stalingrad\zm8_stalingrad.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_theater\zm8_theater.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_tomb\zm8_tomb.gsc
+      <your BO3 folder>\boiii\custom_scripts\zm_zod\zm8_zod.gsc
       <your BO3 folder>\boiii\ui_scripts\zm_8player\__init__.lua
       <your BO3 folder>\launch-zm8.bat
       <your BO3 folder>\zm8-gum-picker.bat
@@ -105,8 +110,7 @@ COMMAND CATEGORIES
                   without completing the normal objective.
   [HOST UTILITY]  Manages joining/spawning, not an EE limit.
 
-The ONLY strict 5-8 player compatibility commands are:
-  zm8_de_bossfight  - DE's 4-pad boss gate
+Normal 5-8 player quests need no manual bypass. One recovery command is:
   zm8_gk_arena      - GK's all-player sewer gate (manual fallback)
 All item grants, quest skips, generator/KOTH completion, and test
 setup commands are cheats. Most 5-8 player fixes run automatically.
@@ -170,6 +174,10 @@ fifth shared plate, that participating player touching the ground resets
 the whole shared sequence like stock. A teammate who has not hit a plate
 yet may wait on the ground.
 
+The final boss ritual still requires real simultaneous Ragnarok plants:
+every living participant up to four, and all four physical pads for a
+5-8 player team. Spectators no longer make the gate impossible.
+
 The map still has only one stock quest coroutine, owner, arrow and prop
 set per bow. Two teammates therefore cannot be on separate steps of the
 same bow simultaneously. The active runner remains authoritative only
@@ -177,13 +185,10 @@ for unique one-time broken-arrow, reforge, placement and cleanup actions.
 Use the pyramid soul box/altar again to hand that role to the partner without
 losing progress; ordinary shared-stage contributions need no handoff.
 
-[COMPATIBILITY] zm8_de_bossfight
-                    release the final boss-pad gate. The stock
-                    ritual (everyone plants their DG-4 on the 4 pads
-                    at once) can never finish with 5+ players
-                    connected - the game wants one pad per connected
-                    player but the map only has 4. Get everyone into
-                    the undercroft first, then run this.
+[TESTING CHEAT] zm8_de_bossfight
+                    force the final boss-pad counter. The legitimate
+                    four-pad ritual is fixed automatically; use this
+                    only to recover/isolate a failed runtime test.
 [TESTING CHEAT] zm8_de_test
                     force-purchase every door/debris blocker, turn
                     on power, and enable damage immunity. Use
@@ -219,11 +224,10 @@ losing progress; ordinary shared-stage contributions need no handoff.
 
 ORIGINS COMMANDS (zm8_origins_*)
 --------------------------------
-No hard player-count block in the Origins quest (gates count staffs,
-not players), but step 6 (One-Inch Punch) requires EVERY connected
-player - spectators included - to earn the upgraded fist.
-Duplicate staff pickups are automatic. Origins has NO command that
-is classified as a strict 5-8 player compatibility bypass.
+Object gates count four staffs/placements rather than players.
+Duplicate staff pickups are automatic, and repeated holders share the
+one physical elemental objective. Step 6 now requires every LIVING
+participant to earn the upgraded punch; spectators are excluded.
 
 [TESTING CHEAT] zm8_origins_generators
                     activate and power all 6 generators.
@@ -250,7 +254,7 @@ is classified as a strict 5-8 player compatibility bypass.
 
 GOROD KROVI COMMANDS (zm8_gk_*) AND AUTOMATIC FIXES
 ---------------------------------------------------
-Three things break outright with 5-8 players; zm8 fixes them
+Several things break outright with 5-8 players; zm8 fixes them
 automatically (no command needed):
 - Dragon ride: only 4 passenger positions exist and a 5th boarder
   crashes the script. zm8 departs the ride "full" at 4 riders;
@@ -259,9 +263,14 @@ automatically (no command needed):
   1-4 players. zm8 pads them (5-8 players get 4-player pacing).
 - Boss arena teleport: fight start teleports each active player to
   one of 4 landing spots. zm8 clones them up to 8.
-Two easter-egg gates count EVERY connected player (spectators too)
-and are auto-credited for players not in play: the network-console
-(KOTH) defense and the sewer ride into the boss arena.
+- Challenge pools: player 7 exhausts all three six-entry pools.
+  Assignments repeat only after exhaustion. Players 5-8 progress real
+  trials, but the four single-owner reward boards are not shared.
+- Time trials and the post-quest all-perks threshold have only 1-4
+  cases. Teams of 5-8 use stock four-player thresholds.
+Four easter-egg gates count EVERY connected player (spectators too)
+and auto-credit only players not in play: KOTH, both Dragon Strike
+lockbox stages, and the sewer ride into the boss arena.
 
 [COMPATIBILITY] zm8_gk_arena
                     manually release the all-connected-player sewer
@@ -298,6 +307,10 @@ Fixed automatically (no command needed):
   progress is per character - players 5-8 share a character and can
   never earn their own. zm8 hands a duplicate the sword once their
   "character twin" earned it.
+- Post-Keeper branch: stock continues only when players.size is
+  exactly 4. It now accepts 4-8 while retaining stock sequencing.
+- Ending exits: four physical IGC exits are reused with offsets for
+  players 5-8.
 Rituals/relics/teleporters are per-character and tolerate index
 twins sharing progress.
 All Shadows commands are testing cheats; its 5-8 player fixes are
@@ -321,6 +334,8 @@ Zetsubou has several stock arrays and physical slots sized only for
 - Challenge assignment: the three pools run out after 5/6/5
   assignments. Players 5-8 may repeat challenges after exhaustion
   and share their modulo-4 physical board, but keep separate progress.
+- All-challenges quest gate: every living participant must complete
+  all three assigned trials; spectators no longer block the zipline step.
 - Pack-a-Punch valve defense: 5-8 use the 4-player enemy limit.
 - All four Skull rituals: 5-8 use 4-player zombie/spider/Thrasher
   pacing instead of reading past the stock balance arrays.
@@ -354,10 +369,16 @@ system is map-wired) - grab it in the labs normally.
 
 REVELATIONS COMMANDS (zm8_rev_*)
 --------------------------------
-Revelations has NO 5-8 player compatibility gates. The boss-arena
-rift gate counts only ACTIVE players (spectator-safe), the arena
-teleports share their 4 landing spots, and there are no per-player-
-count scaling tables. Every Revelations command is a testing cheat.
+Automatic fixes:
+- Both boss-arena paths index four arrival structs; the array is padded
+  to eight and the second group receives nearby offsets.
+- The Old School side-egg delay and round 5/10/15/20 time trials use
+  stock four-player values for teams of 5-8.
+- Trial pools exhaust at player 7. Players 7-8 receive repeated real
+  trials; players 5-8 progress them, but the four single-owner reward
+  boards are intentionally not shared.
+The boss-rift gate itself counts only ACTIVE players and needs no bypass.
+Every Revelations command is a testing cheat.
 Note with 5-8: the rift into the boss arena opens when every LIVING
 player stands within a small radius of the rune portal at once -
 stack tightly on it.
@@ -406,9 +427,9 @@ AUTOMATIC 5-8 COMPATIBILITY FIXES, not cheats:
   trip. The mandatory opening cinematic shares the four anchors.
 - The Matryoshka-doll side egg now folds player indices 5-8 onto
   the four valid VO sets instead of playing an undefined alias.
-The main quest pressure pad has no four-player limit but legitimately
-requires every active participant in its large trigger. A spectator
-or straggler can stop its timer. There are no zm8_cosmodrome_* commands.
+- The main quest pressure timer requires every living participant to
+  stay on the real plate for the stock duration; spectators are excluded.
+There are no zm8_cosmodrome_* commands.
 
 THE GIANT AUTOMATIC FIX (zm_factory)
 ------------------------------------
@@ -428,11 +449,11 @@ zm8_theater_* commands.
 
 SHI NO NUMA AUTOMATIC FIX (zm_sumpf)
 ------------------------------------
-AUTOMATIC 5-8 COMPATIBILITY FIX, not a cheat: the zipline has four
-attachment tags but stock code keeps assigning riders after all four
-are used. zm8 limits a trip to four riders; extras safely take the
-next/return trip. There are no other player-count gates and no
-zm8_sumpf_* commands.
+AUTOMATIC 5-8 COMPATIBILITY FIXES, not cheats: opening placement
+directly indexes four spawn structs, so players 5-8 reuse them with
+nearby offsets. The zipline has four attachment tags, so each trip
+carries at most four and extras safely take the next/return trip.
+There are no zm8_sumpf_* commands.
 
 NACHT DER UNTOTEN
 -----------------
@@ -451,11 +472,17 @@ KNOWN LIMITATIONS
   failures. The stability cap reduces the most likely 5-8-player
   pressure source, but cannot prove every engine lifetime bug is gone.
 - Players 5-8 reuse the map's 4 character models/voices (duplicates).
+- Gorod and Revelations have only four physical single-owner challenge
+  reward boards. Players 5-8 progress trials without an unsafe shared
+  pickup; the limitation is printed to the console.
 - Splitscreen is still 2 players max (engine limit).
 - More than 8 total players is NOT supported - the engine tolerates
   8 (Treyarch's own Grief mode uses 8), beyond that games time out.
 - Stability with 5-8 players is community territory - Treyarch never
   QA'd classic mode beyond 4. Expect occasional weirdness.
+
+See MAP_AUDIT_TEST_PLAN.md for the stock-source finding matrix and exact
+morning test procedures.
 
 UNINSTALL
 ---------

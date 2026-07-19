@@ -9,14 +9,153 @@
 #using scripts\shared\clientfield_shared;
 #using scripts\shared\flag_shared;
 #using scripts\shared\laststand_shared;
+#using scripts\shared\util_shared;
 #using scripts\zm\_zm;
 #using scripts\zm\_zm_audio;
+#using scripts\zm\_zm_powerup_nuke;
+#using scripts\zm\zm_cosmodrome;
 #using scripts\zm\zm_cosmodrome_amb;
+#using scripts\zm\zm_cosmodrome_eggs;
 #using scripts\zm\zm_cosmodrome_lander;
 
 autoexec function zm8_cosmodrome_helper_loaded()
 {
-    println("zm8: Ascension 5-8 player lander compatibility loaded");
+    println("zm8: Ascension 5-8 player lander/quest compatibility loaded");
+}
+
+function zm8_cosmodrome_all_active_on_plate(plate)
+{
+    players = getplayers();
+    active_count = 0;
+
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+
+        if (!isdefined(player) || !isalive(player) || player.sessionstate != "playing")
+        {
+            continue;
+        }
+
+        active_count++;
+
+        if (!player istouching(plate))
+        {
+            return false;
+        }
+    }
+
+    return active_count > 0;
+}
+
+// The Gersh-device pressure plate uses every connected player, so a waiting
+// spectator makes the sustained-pressure step impossible. Keep the real plate
+// and full stock timer; every living participant must remain on it together.
+detour scripts\zm\zm_cosmodrome_eggs::area_timer(time)
+{
+    clock_loc = scripts\codescripts\struct::get("pressure_timer", "targetname");
+    clock = spawn("script_model", clock_loc.origin);
+    clock setmodel("p7_zm_tra_wall_clock");
+    clock.angles = clock_loc.angles;
+    hand_loc = scripts\codescripts\struct::get("clock_timer_hand", "targetname");
+    hand_start_angles = vectorscale((0, 1, 0), 90);
+    timer_hand = scripts\shared\util_shared::spawn_model("p7_zm_kin_clock_second_hand", hand_loc.origin, hand_start_angles);
+    step = 1;
+
+    while (!level scripts\shared\flag_shared::get("pressure_sustained"))
+    {
+        self waittill(#"trigger");
+        stop_timer = 0;
+
+        if (!zm8_cosmodrome_all_active_on_plate(self))
+        {
+            wait step;
+            stop_timer = 1;
+        }
+
+        if (stop_timer)
+        {
+            continue;
+        }
+
+        self playsound("zmb_ee_pressure_plate_down");
+        time_remaining = time;
+        timer_hand rotatepitch(-360, time);
+
+        while (time_remaining)
+        {
+            if (!zm8_cosmodrome_all_active_on_plate(self))
+            {
+                wait step;
+                time_remaining = time;
+                stop_timer = 1;
+                self playsound("zmb_ee_pressure_plate_up");
+                timer_hand rotateto(hand_start_angles, 0.5);
+                timer_hand playsound("zmb_ee_pressure_deny");
+                wait 0.5;
+                break;
+            }
+
+            if (stop_timer)
+            {
+                break;
+            }
+
+            wait step;
+            time_remaining -= step;
+            timer_hand playsound("zmb_ee_pressure_timer");
+        }
+
+        if (time_remaining <= 0)
+        {
+            level scripts\shared\flag_shared::set("pressure_sustained");
+            players = getplayers();
+            nuke_player = undefined;
+
+            for (i = 0; i < players.size; i++)
+            {
+                if (isdefined(players[i]) && isalive(players[i]) && players[i].sessionstate == "playing")
+                {
+                    nuke_player = players[i];
+                    break;
+                }
+            }
+
+            timer_hand playsound("zmb_perks_packa_ready");
+
+            if (isdefined(nuke_player))
+            {
+                old_fx = undefined;
+
+                if (isdefined(nuke_player.fx))
+                {
+                    old_fx = nuke_player.fx;
+                }
+
+                nuke_player.fx = level.zombie_powerups["nuke"].fx;
+                level thread scripts\zm\_zm_powerup_nuke::nuke_powerup(nuke_player, nuke_player.team);
+                clock stoploopsound(1);
+                wait 1;
+
+                if (isdefined(old_fx))
+                {
+                    nuke_player.fx = old_fx;
+                }
+                else
+                {
+                    nuke_player.fx = undefined;
+                }
+            }
+            else
+            {
+                clock stoploopsound(1);
+            }
+
+            clock delete();
+            timer_hand delete();
+            return;
+        }
+    }
 }
 
 detour scripts\zm\zm_cosmodrome_lander::lock_players(destination)

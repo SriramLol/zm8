@@ -5,16 +5,53 @@
 // Carry at most four riders per trip; extra players remain safely at the stop
 // and can take the return/next trip.
 
+#using scripts\codescripts\struct;
 #using scripts\shared\ai\zombie_utility;
 #using scripts\shared\clientfield_shared;
+#using scripts\shared\flag_shared;
 #using scripts\shared\scene_shared;
 #using scripts\shared\util_shared;
 #using scripts\zm\_zm;
+#using scripts\zm\zm_sumpf;
 #using scripts\zm\zm_sumpf_zipline;
 
 autoexec function zm8_sumpf_helper_loaded()
 {
-    println("zm8: Shi No Numa 5-8 player zipline compatibility loaded");
+    println("zm8: Shi No Numa 5-8 player spawn/zipline compatibility loaded");
+}
+
+// Stock indexes one authored initial_spawn_points struct per connected
+// player. The map has four, so the fifth player dereferences undefined before
+// round logic begins. Reuse the four valid points and move the second group a
+// short distance to the right. spectator_respawn must continue to reference
+// the real stock struct because the respawn system reads it later.
+detour scripts\zm\zm_sumpf::sumpf_player_spawn_placement()
+{
+    spawn_points = scripts\codescripts\struct::get_array("initial_spawn_points", "targetname");
+    level scripts\shared\flag_shared::wait_till("start_zombie_round_logic");
+
+    if (!isdefined(spawn_points) || spawn_points.size < 1)
+    {
+        println("zm8: Shi No Numa initial spawn points were not found");
+        return;
+    }
+
+    players = getplayers();
+
+    for (i = 0; i < players.size; i++)
+    {
+        spawn_point = spawn_points[i % spawn_points.size];
+        destination = spawn_point.origin;
+
+        if (i >= spawn_points.size)
+        {
+            destination += vectorscale(anglestoright(spawn_point.angles), 48);
+        }
+
+        players[i] setorigin(destination);
+        players[i] setplayerangles(spawn_point.angles);
+        players[i].spectator_respawn = spawn_point;
+    }
 }
 
 detour scripts\zm\zm_sumpf_zipline::activatezip(rider)

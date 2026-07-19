@@ -27,12 +27,17 @@ EZZ v1.1.7 restored its legacy custom-builtin dispatcher. zm8 uses the v1.1.7 un
 2. Copy the contents of this repo (or the release zip) into it, keeping the folder structure:
    ```
    <BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_castle\zm8_castle.gsc
    <BO3 folder>\boiii\custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc
    <BO3 folder>\boiii\custom_scripts\zm_factory\zm8_factory.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_genesis\zm8_genesis.gsc
    <BO3 folder>\boiii\custom_scripts\zm_island\zm8_island.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_stalingrad\zm8_stalingrad.gsc
    <BO3 folder>\boiii\custom_scripts\zm_sumpf\zm8_sumpf.gsc
    <BO3 folder>\boiii\custom_scripts\zm_temple\zm8_temple.gsc
    <BO3 folder>\boiii\custom_scripts\zm_theater\zm8_theater.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_tomb\zm8_tomb.gsc
+   <BO3 folder>\boiii\custom_scripts\zm_zod\zm8_zod.gsc
    <BO3 folder>\boiii\ui_scripts\zm_8player\__init__.lua
    <BO3 folder>\launch-zm8.bat
    <BO3 folder>\zm8-gum-picker.bat
@@ -59,9 +64,8 @@ Run `zm8-gum-picker.bat` → pick up to 5 gums (type to filter, `per` → Perkah
 - **Testing cheat** means the command grants equipment, power or quest progress without completing the normal objective. Cheats are optional testing tools; they are not required for normal 5–8-player play.
 - **Host utility** means player/session management rather than an Easter-egg bypass. `zm8_spawn` can still act as a cheat when used to revive a bled-out player early.
 
-The only manual commands currently classified as strict 5–8-player compatibility bypasses are:
+No manual command is required for normal 5–8-player quest completion. One recovery command remains for a runtime-only transport failure:
 
-- `zm8_de_bossfight` — releases Der Eisendrache's four-Ragnarok-pad gate for a 5–8-player team already at the boss entrance.
 - `zm8_gk_arena` — releases Gorod Krovi's all-connected-players sewer gate if its automatic recovery fails after all active players enter.
 
 **Every equipment-grant, door/power setup, generator activation, KOTH completion and quest-skip command is a testing cheat.** The core 8-player cap and passive map fixes are automatic and require no command.
@@ -87,12 +91,13 @@ Automatic compatibility fixes:
 - Upgraded-bow pedestals remain reusable so players 5–8 can take duplicate upgraded bows. Each player may hold only one upgraded bow at a time.
 - All four elemental quests support independent **two-player bow teams**: two Lightning, two Fire, two Void and two Wolf players, covering all eight slots. The first player who legitimately starts a stock bow quest becomes its active runner. A second player joins at that bow's final soul box/altar in the main pyramid undercroft—the box where the reforged arrow is placed and the upgraded bow eventually appears. Both teammates can simultaneously contribute to the same stage: kills, souls, bow shots, Lightning plates/urns/bonfires, Fire runes, Void circles/golf shots, and Wolf escort/bone steps are credited to either teammate. A small personal HUD reads `ACTIVE`, `PARTNER` or `WAITING`. One player may join one bow team, with two players maximum per bow. This is a compatibility feature, not a quest-progress cheat.
 - The shared Lightning wall-plate step has no artificial timer. Each teammate enters the attempt when they hit their first plate; from then until the fifth shared plate, that participating player touching the ground resets the shared sequence exactly like stock. A teammate who has not hit a plate yet may wait on the ground.
+- The final boss ritual still requires simultaneous real Ragnarok plants. It requires every living participant up to the four physical pads; a 5–8-player team must claim all four pads. Spectators no longer make the gate impossible.
 
 DE still has only one global coroutine, owner field, arrow and physical objective set per element. Consequently, teammates cannot run two independent copies of the same bow at different stages. One teammate remains the active stock owner for unique one-time actions—binding the broken arrow, reforging it, placing it and driving stock cleanup. Use that bow's pyramid soul box/altar again to hand this role to the partner without losing progress; ordinary stage contributions do not require a handoff.
 
 | Command | Effect |
 |---|---|
-| `zm8_de_bossfight` | **5–8-player compatibility:** release the final boss-pad gate after the team legitimately reaches it. Stock demands one simultaneous Ragnarok plant per connected player but provides only four pads, so 5+ players cannot satisfy it. Gather everyone in the undercroft first |
+| `zm8_de_bossfight` | **Testing/recovery cheat:** force the final boss-pad counter after the team reaches the undercroft. The automatic fix now supports the legitimate four-pad ritual, so this command is only for isolating a failed runtime test |
 | `zm8_de_test` | **Testing cheat:** force-purchase all buyable doors/debris, turn on power and give current players damage immunity. `zm8_de_test 0` removes immunity; doors and power remain |
 | `zm8_de_eecomplete` | **Testing cheat:** skip the entire main quest straight to boss-ready and auto-press the pyramid canister. Skipped quest state may prevent the ending cinematic |
 | `zm8_de_bows [element]` | **Testing cheat:** give every living player an upgraded bow with full ammo. Element: `fire`, `void`, `storm` or `wolf`; no argument mixes all four |
@@ -103,7 +108,7 @@ DE still has only one global coroutine, owner field, arrow and physical objectiv
 
 ### Origins commands (`zm8_origins_*`)
 
-Good news from the code audit: unlike Der Eisendrache, the Origins quest has no hard player-count block — every step gate counts staffs/objects (always 4), not players. The one co-op catch: step 6 (One-Inch Punch) requires **every connected player** — spectators included — to earn the upgraded fist. Duplicate staff pickups are enabled automatically for players 5–8. Therefore, **Origins has no command classified as a strict 5–8-player compatibility bypass**.
+Origins' object gates count four staffs/placements rather than players. Duplicate staff pickups are enabled automatically, so players 5–8 may hold a repeated element and contribute kills/charging around the same physical staff objective. Step 6's stock all-connected-player check is detoured to require every **living participant** to earn the upgraded One-Inch Punch; spectators no longer block it. Staff owner/model state remains single-instance per element, so duplicated holders share progress rather than running independent quests.
 
 | Command | Effect |
 |---|---|
@@ -115,13 +120,15 @@ Good news from the code audit: unlike Der Eisendrache, the Origins quest has no 
 
 ### Gorod Krovi commands (`zm8_gk_*`) and automatic fixes
 
-Gorod Krovi needed the most work of any map so far. Three things break outright with 5–8 players, and zm8 fixes them **automatically** — no command needed:
+Gorod Krovi needed the most work of any map so far. zm8 fixes these stock failures **automatically** — no command needed:
 
 - **Dragon ride**: the dragon only has 4 passenger positions; a 5th boarder crashes the script. zm8 declares the ride full the moment 4 players are aboard — everyone else catches the next flight.
 - **Boss fight scaling**: the final fight reads zombie-count tables sized for 1–4 players; with 5+ the lookup errors mid-fight. zm8 pads the tables (5–8 players get 4-player pacing).
 - **Boss arena teleport**: the fight start teleports each active player to one of 4 landing spots. zm8 clones them up to 8.
+- **Challenge pools:** all three six-entry pools are exhausted by player 7. Assignments now repeat only after a pool empties. Players 5–8 receive and progress real trials, but the four single-owner physical reward boards are not shared; their missing reward slot is reported in the console.
+- **Time trials/rewards:** round 5/10/15/20/50 thresholds and the post-quest all-perks threshold have only 1–4-player cases. Teams of 5–8 use the stock four-player thresholds.
 
-Two easter-egg gates count **every connected player** (spectators included) and are auto-credited for players who are not in play: the network-console (KOTH) defense and the sewer ride into the boss arena.
+Four easter-egg gates count **every connected player** (spectators included) and are auto-credited only for players who are not in play: the network-console (KOTH) defense, both Dragon Strike lockbox stages, and the sewer ride into the boss arena.
 
 | Command | Effect |
 |---|---|
@@ -133,10 +140,12 @@ Two easter-egg gates count **every connected player** (spectators included) and 
 
 ### Shadows of Evil commands (`zm8_soe_*`) and automatic fixes
 
-Two things are fixed **automatically** — no command needed:
+Four things are fixed **automatically** — no command needed:
 
 - **Round spawner crash**: the map's zombie spawn-delay formula only covers 1–4 players and script-errors with a 5th player in the game. zm8 swaps in a clamped copy (5–8 get 4-player pacing).
 - **Sword gate**: the main quest's keeper phase (`ee_begin`) waits until **every active player** holds their character's upgraded Apothicon sword, but sword progress is tracked per character — players 5–8 share a character with someone else and can never earn their own. zm8 auto-hands a duplicate the sword once their "character twin" has earned it.
+- **Post-Keeper quest branch:** stock continues to the Shadowman/ending phase only when `players.size === 4`. The branch now accepts 4–8 while preserving the stock Keeper states and ending coroutine.
+- **Ending exits:** the ending IGC directly names four exit structs by player number. Players 5–8 reuse valid exits with a small offset.
 
 Rituals, relics and pod teleporters are per-character and tolerate duplicates sharing progress (both index-twins can interact with the same stations).
 
@@ -153,6 +162,7 @@ Shadows of Evil has no manual command classified as a strict 5–8-player compat
 Zetsubou contains several stock arrays and physical slots sized only for 1–4 players. zm8 fixes all of these **automatically**:
 
 - **Challenge assignment:** the three challenge pools run out after 5/6/5 assignments. Players 5–8 may receive repeated challenges after a pool is exhausted and use their modulo-4 physical challenge board while keeping independent progress.
+- **All-challenges quest gate:** stock compares completed players against every connected entity. The electrical-shield/zipline step now requires every living participant to finish all three assigned challenges, excluding spectators.
 - **Pack-a-Punch valve defense:** its enemy-limit table ends at four players. Teams of 5–8 use the stock four-player limit.
 - **Four Skull of Nan Sapwe rituals:** their zombie, spider and Thrasher balance tables end at four players. Teams of 5–8 use four-player pacing.
 - **Final Skull room:** both enemy-balance tables end at four players. Teams of 5–8 use four-player pacing.
@@ -174,7 +184,14 @@ Cosmetic quirks with 5–8 (documented, not fixed): the Pack-a-Punch zombie-dist
 
 ### Revelations commands (`zm8_rev_*`)
 
-**Revelations has no 5–8-player compatibility gates.** The boss-arena rift gate counts only *active* players (spectator-safe), the arena teleports share their 4 landing spots across any number of players, and there are no per-player-count scaling tables. Every Revelations command is a testing cheat.
+Revelations has several automatic fixes:
+
+- Both boss-arena start paths directly index four `dark_arena_teleport_hijack` structs. The stored array is padded to eight, with offset arrivals for the second group.
+- The Old School side egg directly indexes a 1–4-player delay array. Slots 5–8 use the stock four-player delay.
+- Round 5/10/15/20 time trials have no 5–8-player cases. Larger teams use four-player thresholds.
+- Each trial category contains six assignments. Players 7–8 now receive repeated real trials after exhaustion. Players 5–8 can progress them, but the four physical single-owner reward boards are intentionally not shared; the console prints that limitation.
+
+The main boss-rift gate itself counts only *active* players and needs no bypass. Every `zm8_rev_*` command remains a testing cheat.
 
 One thing to know with 5–8 (documented, no fix needed): the rift into the boss arena opens when every **living** player stands within a small radius of the rune portal at once — stack tightly on it.
 
@@ -200,12 +217,13 @@ Audited — **needs nothing**. No quest, no map-specific wonder weapon, no per-p
 
 ### Ascension automatic fixes (`zm_cosmodrome`)
 
-Two fixed-four assumptions are repaired automatically by `custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc`:
+Three co-op assumptions are repaired automatically by `custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc`:
 
 - **Lunar lander:** the vehicle has only four physical rider anchors. Stock code writes through anchor index `-1` when a fifth player boards and can script-error. A normal trip now takes at most four players; players 5–8 remain safely at the station and take the next trip. The mandatory opening cinematic carries everybody by sharing the four cinematic anchors.
 - **Matryoshka-doll VO:** the side egg's response switch only handles player indices 0–3. Players 5–8 now reuse the corresponding modulo-four voice so an undefined sound alias cannot abort the interaction.
+- **Main-quest pressure timer:** every living participant must remain on the real pressure plate for the full stock timer, but waiting spectators are excluded.
 
-These are automatic **5–8-player compatibility fixes**, not cheats. Ascension's main quest pressure-pad step legitimately asks every active participant to stay inside the same large trigger; it has no four-player array limit, but a spectator/straggler can stop its timer. Ascension adds no console commands.
+These are automatic **5–8-player compatibility fixes**, not cheats. Ascension adds no console commands.
 
 ### The Giant automatic fix (`zm_factory`)
 
@@ -217,7 +235,7 @@ Kino's teleporter has four physical staging and destination spots, but stock cod
 
 ### Shi No Numa automatic fix (`zm_sumpf`)
 
-The zipline has four model attachment tags. Stock code removes each tag as it assigns a rider but keeps iterating players, leaving player 5 linked to an undefined tag. `custom_scripts\zm_sumpf\zm8_sumpf.gsc` limits each trip to four riders; extra players remain safely at the stop and can take the next/return trip. This is an automatic **5–8-player compatibility fix**, not a cheat. Shi No Numa has no main quest or other player-count gate, so there are no `zm8_sumpf_*` commands.
+Shi No Numa has two automatic fixes in `custom_scripts\zm_sumpf\zm8_sumpf.gsc`: its opening placement directly indexes only four authored spawn structs, so players 5–8 reuse them with nearby offsets; its zipline has four attachment tags, so each trip carries at most four riders and the rest take the next trip. Shi No Numa has no main quest or `zm8_sumpf_*` commands.
 
 ### Nacht der Untoten
 
@@ -228,9 +246,12 @@ Audited — **needs nothing**. Nacht has no map transport, quest, player-count b
 - The left-edge points HUD is extended to 8 rows: players 5–8 continue above the three stock teammate rows without covering the local player's points. Missing clients-4–7 color dvars are supplied by the lobby Lua. The TAB scoreboard supports 18 rows stock
 - Long-session `ScrVar_ReleaseValue` access violations are native VM failures. The stability cap reduces the most likely 5–8-player pressure source but is a mitigation, not proof that every engine-side lifetime bug is eliminated
 - Players 5–8 reuse the map's 4 character models/voices
+- Gorod Krovi and Revelations have only four physical, single-owner challenge reward boards. Players 5–8 receive/progress trials without an unsafe shared reward pickup; the limitation is logged
 - Splitscreen remains 2 players max (engine limit)
 - **Do not exceed 8 players** — beyond 8 the engine times everyone out
 - Classic mode past 4 players was never QA'd by Treyarch; expect occasional weirdness
+
+The full stock-source finding matrix and exact morning test procedures are in [`MAP_AUDIT_TEST_PLAN.md`](MAP_AUDIT_TEST_PLAN.md).
 
 ## Credits
 
