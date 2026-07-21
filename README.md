@@ -1,6 +1,8 @@
 # zm8 — 8-Player Zombies for Black Ops III
 
-Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map — stock and DLC (Der Eisendrache, The Giant, Origins, ...). No mod menu, no workshop subscription. Built for ezboiii/EZZ **v1.1.7 or newer**.
+Play **Call of Duty: Black Ops III zombies with up to 8 players** on every map — stock and DLC (Der Eisendrache, The Giant, Origins, ...). No mod menu, no workshop subscription.
+
+This package **bundles the BOIII client v1.1.7** (`boiii.exe`) and pins it: the included launcher runs it with `-noupdate` so it never auto-updates to a newer build that breaks the mod. You still need your own working Black Ops III + BOIII install to drop these files into — the game itself is not included.
 
 **Only the host needs this mod.** Friends install nothing — they join through the server browser or direct connect.
 
@@ -21,11 +23,25 @@ BO3's native pools remain fixed: **130,000 server ScrVars, 65,000 client ScrVars
 
 EZZ v1.1.7 restored its legacy custom-builtin dispatcher. zm8 uses the v1.1.7 unqualified builtin syntax and supplies an explicit empty filter to `getcommand("")`, avoiding the client's broken zero-real-argument path during map startup.
 
+## Version & updates (why this pins v1.1.7)
+
+The BOIII client auto-updates on launch: it pulls a file manifest from the update server and re-downloads anything — **including `boiii.exe` itself** — that doesn't match the current "latest" build, then relaunches. It has **no per-version channel** (the only switch is latest-vs-beta), so you cannot ask the server for an older build. Newer builds (e.g. 1.1.10) change the client in ways that break this mod, and 1.1.10 was broken outright for us.
+
+The fix is the client's `-noupdate` launch flag, which makes the updater return before it ever contacts the server. This package therefore:
+
+- ships a known-good **`boiii.exe` v1.1.7** (sha256 `afc842482c14010c2225e61fe796536a632a4ad330952aa36284ae292eac2134`, the official v1.1.7 release binary), and
+- launches it via `launch-zm8.bat` with `-noupdate`.
+
+`-noupdate` has a second useful effect: the client's startup **purge** of `%LOCALAPPDATA%\boiii` lives inside the updater, so disabling the updater also stops the purge — the mod files under `boiii\` are left untouched.
+
+**The pin lives entirely in the launcher flag.** If you start `boiii.exe` directly, or through the EZZ launcher, without `-noupdate`, it will immediately update to the latest build and overwrite the pinned exe — so always launch with the bat.
+
 ## Installation
 
 1. Find your Black Ops III game folder — the one containing `boiii.exe`.
-2. Copy the contents of this repo (or the release zip) into it, keeping the folder structure:
+2. Copy the contents of the release zip into it, keeping the folder structure, and **replace `boiii.exe` when prompted** (that swap is what pins you to v1.1.7):
    ```
+   <BO3 folder>\boiii.exe                        (v1.1.7)
    <BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
    <BO3 folder>\boiii\custom_scripts\zm_castle\zm8_castle.gsc
    <BO3 folder>\boiii\custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc
@@ -44,11 +60,11 @@ EZZ v1.1.7 restored its legacy custom-builtin dispatcher. zm8 uses the v1.1.7 un
    <BO3 folder>\zm8-gum-picker.bat
    <BO3 folder>\zm8-gum-picker.ps1
    ```
-3. Done — nothing is replaced, the mod only adds files.
+3. Done. The only file replaced is `boiii.exe` (swapped to the pinned v1.1.7); everything else is added. If you don't already have BOIII, install it from ezz.lol first, then apply this package over it.
 
 ## Hosting
 
-1. Start the game however you like — `boiii.exe`, the EZZ launcher, or `launch-zm8.bat`. The UI patch now lives in `boiii\ui_scripts\`, which the client loads directly and never wipes (older versions used the appdata folder, which the client purges at startup — that's what the bat worked around; it's no longer required).
+1. **Always start the game with `launch-zm8.bat`** (double-click it). This is required — the bat passes `-noupdate`, which keeps you on the bundled v1.1.7 and stops the client's startup purge. Launching `boiii.exe` or the EZZ launcher directly will auto-update to the latest build and break the mod. (The bat also closes any leftover BO3 process so you never get "already running".)
 2. Zombies → Private Game → any map → **Configure Game Ranking → non-ranked** (custom scripts only load in non-ranked matches).
 3. Start. ~6 seconds in you'll see **"zm8 mod loaded - 8 player cap active"** and the zombie counter.
 4. Friends join via server browser or `connect <your-ip>` — up to 8 total.

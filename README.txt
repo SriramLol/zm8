@@ -4,8 +4,13 @@
 
 Play Call of Duty: Black Ops III zombies with up to 8 players on
 EVERY map - stock and DLC (Der Eisendrache, The Giant, Origins...).
-No mod menu, no workshop subscription. Works on ezboiii/EZZ v1.1.7
-or newer.
+No mod menu, no workshop subscription.
+
+This package BUNDLES the BOIII client v1.1.7 (boiii.exe) and pins it
+there - the included launcher runs it with -noupdate so it never
+auto-updates to a newer build that breaks the mod. You still need
+your own working Black Ops III + BOIII install to drop these files
+into (the game itself is not included).
 
 FEATURES
 --------
@@ -33,14 +38,43 @@ Its command poll calls getcommand("") with an explicit empty filter to avoid
 the client's broken zero-real-argument dispatcher path during map startup.
 
 
+VERSION & UPDATES (WHY THIS PINS v1.1.7)
+----------------------------------------
+The BOIII client auto-updates on launch: it pulls a file manifest from
+its update server and re-downloads anything - INCLUDING boiii.exe itself
+- that doesn't match the current "latest" build, then relaunches. It has
+NO per-version option (the only switch is latest-vs-beta), so you cannot
+ask the server for an older build. Newer builds change the client in ways
+that break this mod, and 1.1.10 was broken outright for us.
+
+The fix is the client's -noupdate launch flag, which makes the updater
+return before it ever contacts the server. So this package:
+  * ships a known-good boiii.exe v1.1.7 (the official v1.1.7 release
+    binary, sha256 afc842482c14010c2225e61fe796536a632a4ad330952aa362
+    84ae292eac2134), and
+  * launches it via launch-zm8.bat with -noupdate.
+
+-noupdate also stops the client's startup purge of %LOCALAPPDATA%\boiii
+(that purge lives inside the updater), so the mod files under boiii\ are
+left untouched.
+
+THE PIN LIVES ENTIRELY IN THE LAUNCHER FLAG. If you start boiii.exe
+directly, or through the EZZ launcher, without -noupdate, it will update
+to the latest build and overwrite the pinned exe - so ALWAYS launch with
+the bat.
+
+
 INSTALLATION
 ------------
 1. Find your Black Ops III game folder - the one that contains
    boiii.exe (e.g. C:\Games\Call of Duty Black Ops III\).
 
 2. Extract EVERYTHING in this zip into that folder, keeping the
-   folder structure. Merge folders if asked. You should end up with:
+   folder structure. Merge folders if asked, and REPLACE boiii.exe
+   when prompted (that swap is what pins you to v1.1.7). You should
+   end up with:
 
+      <your BO3 folder>\boiii.exe                       (v1.1.7)
       <your BO3 folder>\boiii\custom_scripts\zm\zm8.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_castle\zm8_castle.gsc
       <your BO3 folder>\boiii\custom_scripts\zm_cosmodrome\zm8_cosmodrome.gsc
@@ -59,16 +93,22 @@ INSTALLATION
       <your BO3 folder>\zm8-gum-picker.bat
       <your BO3 folder>\zm8-gum-picker.ps1
 
-3. That's it. No files are replaced - the mod only adds new ones.
+3. That's it. The only file replaced is boiii.exe (swapped to the
+   pinned v1.1.7); everything else is added.
+
+   NOTE: if you don't already have BOIII installed, get it from
+   ezz.lol first (that gives you the client + game data hookup),
+   then apply this package over it and launch with the bat below.
 
 
 HOW TO PLAY (HOST)
 ------------------
-1. Start the game however you like - boiii.exe, the EZZ launcher, or
-   launch-zm8.bat. The UI patch now lives in boiii\ui_scripts\, which
-   the client loads directly and never wipes (older versions used the
-   appdata folder, which the client purges at startup - that is what
-   the bat worked around; it is no longer required).
+1. ALWAYS start the game with launch-zm8.bat (double-click it).
+   This is required: the bat passes -noupdate, which keeps you on the
+   bundled v1.1.7 and stops the client's startup purge. If you launch
+   boiii.exe directly or through the EZZ launcher, it will auto-update
+   to the latest build and the mod will stop working. (The bat also
+   closes any leftover BO3 process so you never get "already running".)
 
 2. In-game: ZOMBIES -> PRIVATE GAME -> pick any map.
 
