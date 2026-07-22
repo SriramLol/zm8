@@ -1,0 +1,28 @@
+BOIII v1.1.7 - NO-UPDATE PACKAGE
+================================
+
+This minimal package contains only:
+
+  * boiii-v1.1.7.exe - the verified BOIII v1.1.7 client
+  * launch-boiii-1.1.7.bat - launches it with -noupdate
+  * this instruction file
+
+It does not contain any zm8 GSC scripts, Lua scripts, or gameplay changes.
+
+INSTALL
+-------
+
+1. Extract all three files into your Black Ops III folder.
+2. Always start BOIII with launch-boiii-1.1.7.bat.
+3. Do not launch through an updater if you want to remain on v1.1.7.
+
+The -noupdate argument prevents this preserved v1.1.7 executable from
+contacting the update service and replacing itself with a newer build.
+
+VERIFICATION
+------------
+
+BOIII product version: 1.1.7
+BOIII file version:    1.1.7.2108
+SHA-256:
+AFC842482C14010C2225E61FE796536A632A4AD330952AA36284AE292EAC2134
