@@ -234,9 +234,10 @@ no command is required for duplicate bow pickups.
 All four elemental quests support TWO-PLAYER BOW TEAMS: two Lightning,
 two Fire, two Void and two Wolf players, covering all eight slots. The
 first player who legitimately starts a bow quest becomes its active
-runner. A second player joins at that bow's final soul box/altar in the
+runner. A second player presses P at that bow's final soul box/altar in the
 main pyramid undercroft: the box where the reforged arrow is placed and
-the upgraded bow eventually appears. Both
+the upgraded bow eventually appears. This dedicated stock-style prompt
+does not consume the normal Use/F input. Both
 players can simultaneously contribute kills, souls, shots, plates,
 urns, bonfires, Fire runes, Void circles/golf shots and Wolf escort/bone
 steps. A personal HUD shows ACTIVE, PARTNER or WAITING. One player can
@@ -256,7 +257,7 @@ The map still has only one stock quest coroutine, owner, arrow and prop
 set per bow. Two teammates therefore cannot be on separate steps of the
 same bow simultaneously. The active runner remains authoritative only
 for unique one-time broken-arrow, reforge, placement and cleanup actions.
-Use the pyramid soul box/altar again to hand that role to the partner without
+Press P at the pyramid soul box/altar again to hand that role to the partner without
 losing progress; ordinary shared-stage contributions need no handoff.
 
 [TESTING CHEAT] zm8_de_bossfight

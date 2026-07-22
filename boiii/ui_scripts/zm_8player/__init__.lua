@@ -170,6 +170,27 @@ pcall(function()
 		return
 	end
 
+	-- Der Eisendrache's bow-team handoff is intentionally separate from the
+	-- stock Use/F action. Action slot 4 gives GSC a per-player button state;
+	-- binding it here makes P work for every client, not only the listen host.
+	pcall(function()
+		if Engine.GetCurrentMap() == "zm_castle" then
+			local controller = 0
+
+			if Engine.GetPrimaryController then
+				controller = Engine.GetPrimaryController() or 0
+			end
+
+			if Engine.ExecNow then
+				Engine.ExecNow(controller, 'bind P "+actionslot 4"')
+			else
+				Engine.Exec(controller, 'bind P "+actionslot 4"')
+			end
+
+			dbg("bound P to the Der Eisendrache bow-team action")
+		end
+	end)
+
 	-- make sure the widget classes exist before we wrap them (both casings;
 	-- module names may be registered either way across client builds)
 	pcall(function() require("ui.uieditor.widgets.HUD.ZM_Score.ZMScr_ListingLg") end)

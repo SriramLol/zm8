@@ -24,7 +24,7 @@ Stock risks: one owner/coroutine per elemental quest, four Ragnarok pads, and st
 
 Run these on separate fresh loads where practical:
 
-- `zm8_test bowteam`: assigns the first bot as Lightning ACTIVE and drives the confirmed shared-Lightning harness. At the Lightning undercroft box, press/release `F` once to join, then again to take ACTIVE. Expected: stable element prompt and ACTIVE/PARTNER transfer; either teammate contributes without duplicate stage changes.
+- `zm8_test bowteam`: assigns the first bot as Lightning ACTIVE and drives the confirmed shared-Lightning harness. At the Lightning undercroft box, press/release `P` once to join, then again to take ACTIVE. Expected: a stock-style interaction prompt and stable ACTIVE/PARTNER transfer; either teammate contributes without duplicate stage changes.
 - `zm8_test bows lightning`, `fire`, `void`, or `wolf`: gives the selected upgraded bow to every living player. Use this to verify duplicate ownership, ammo, weapon switching, and deliberate repeat pickup without replaying each elemental quest. Omit the element to give all four across the team.
 - `zm8_test bossready`: skips to the real boss ritual and gives Ragnaroks, but does not force the pad counter. Put four real clients on the four pads and plant. With 5-8 living, four claimed pads must start the fight; a spectator must not block it.
 - `zm8_test boss`: same setup, then forces the final transition for boss-arena and ending isolation. Expected: all living players reach valid destinations and regain controls.

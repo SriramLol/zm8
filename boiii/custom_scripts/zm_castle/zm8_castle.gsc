@@ -766,6 +766,91 @@ function zm8_de_transfer_bow_owner(player, element)
     return false;
 }
 
+function zm8_de_team_prompt_text(player, element)
+{
+    label = zm8_de_bow_label(element);
+    members = zm8_de_bow_team_members(element);
+    owner = zm8_de_bow_owner(element);
+
+    if (!isdefined(player.zm8_de_bow_team))
+    {
+        if (members.size >= 2)
+        {
+            return label + " BOW TEAM IS FULL";
+        }
+
+        return "Press ^3[P]^7 to join the " + label + " Bow team";
+    }
+
+    if (player.zm8_de_bow_team != element)
+    {
+        if (members.size >= 2)
+        {
+            return label + " BOW TEAM IS FULL";
+        }
+
+        return "Press ^3[P]^7 to switch to the " + label + " Bow team";
+    }
+
+    if (isdefined(owner) && owner === player)
+    {
+        return "YOU ARE THE ACTIVE " + label + " BOW RUNNER";
+    }
+
+    return "Press ^3[P]^7 to become the active " + label + " Bow runner";
+}
+
+// Match the stock interaction presentation: a small white prompt immediately
+// below the crosshair, with the dedicated key highlighted like a normal use
+// hint. The UI script binds P to action slot 4 on Der Eisendrache clients.
+function zm8_de_show_team_prompt(player, element)
+{
+    if (!isdefined(player) || !isalive(player))
+    {
+        return;
+    }
+
+    state = zm8_de_team_prompt_text(player, element);
+
+    if (!isdefined(player.zm8_de_team_prompt))
+    {
+        player.zm8_de_team_prompt = newclienthudelem(player);
+        player.zm8_de_team_prompt.alignx = "center";
+        player.zm8_de_team_prompt.aligny = "middle";
+        player.zm8_de_team_prompt.horzalign = "center";
+        player.zm8_de_team_prompt.vertalign = "middle";
+        player.zm8_de_team_prompt.x = 0;
+        player.zm8_de_team_prompt.y = 55;
+        player.zm8_de_team_prompt.fontscale = 1.25;
+        player.zm8_de_team_prompt.color = (1, 1, 1);
+        player.zm8_de_team_prompt.alpha = 1;
+        player.zm8_de_team_prompt.sort = 100;
+        player.zm8_de_team_prompt.hidewheninmenu = true;
+        player.zm8_de_team_prompt_element = element;
+        player.zm8_de_team_prompt_state = undefined;
+    }
+
+    if (!isdefined(player.zm8_de_team_prompt_state) || player.zm8_de_team_prompt_state != state)
+    {
+        player.zm8_de_team_prompt settext(state);
+        player.zm8_de_team_prompt_state = state;
+    }
+}
+
+function zm8_de_clear_team_prompt(player, element)
+{
+    if (!isdefined(player) || !isdefined(player.zm8_de_team_prompt) ||
+        !isdefined(player.zm8_de_team_prompt_element) || player.zm8_de_team_prompt_element != element)
+    {
+        return;
+    }
+
+    player.zm8_de_team_prompt destroy();
+    player.zm8_de_team_prompt = undefined;
+    player.zm8_de_team_prompt_element = undefined;
+    player.zm8_de_team_prompt_state = undefined;
+}
+
 function zm8_de_create_team_pedestal(element, struct_name)
 {
     level endon("end_game");
@@ -811,11 +896,11 @@ function zm8_de_create_team_pedestal(element, struct_name)
     }
 
     // A dynamically spawned trigger_radius_use does not reliably display or
-    // fire on this client build. Poll the real pedestal model instead and
-    // consume the rising edge of Use/F ourselves. Proximity alone never joins
-    // a team or transfers ownership.
+    // fire on this client build. Poll the real pedestal model instead, render
+    // a stock-style per-player prompt and consume the rising edge of the
+    // dedicated P binding. Proximity alone never joins a team or transfers
+    // ownership.
     nearby_players = [];
-    label = zm8_de_bow_label(element);
 
     while (true)
     {
@@ -824,6 +909,13 @@ function zm8_de_create_team_pedestal(element, struct_name)
         {
             // The duplicate upgraded-bow pickup owns this location after the
             // quest completes.
+            players = getplayers();
+
+            for (i = 0; i < players.size; i++)
+            {
+                zm8_de_clear_team_prompt(players[i], element);
+            }
+
             return;
         }
 
@@ -846,6 +938,7 @@ function zm8_de_create_team_pedestal(element, struct_name)
                 if (isdefined(nearby_players[player_id]))
                 {
                     nearby_players[player_id] = undefined;
+                    zm8_de_clear_team_prompt(player, element);
                 }
 
                 continue;
@@ -854,10 +947,11 @@ function zm8_de_create_team_pedestal(element, struct_name)
             if (!isdefined(nearby_players[player_id]))
             {
                 nearby_players[player_id] = true;
-                player iprintlnbold("^3zm8: " + label + " BOX - press F to join/take ACTIVE");
             }
 
-            if (!(player usebuttonpressed()) ||
+            zm8_de_show_team_prompt(player, element);
+
+            if (!(player actionslotfourbuttonpressed()) ||
                 (isdefined(player.zm8_de_team_use_locked) && player.zm8_de_team_use_locked))
             {
                 continue;
@@ -892,7 +986,7 @@ function zm8_de_handle_team_pedestal_use(player, element)
         }
 
         zm8_de_assign_bow_team(player, element);
-        player iprintlnbold("^2zm8: joined " + label + " BOW TEAM - release and press F again to take ACTIVE");
+        player iprintlnbold("^2zm8: joined " + label + " BOW TEAM - release and press P again to take ACTIVE");
         println("zm8: player joined " + label + " bow team");
         return;
     }
@@ -917,7 +1011,7 @@ function zm8_de_handle_team_pedestal_use(player, element)
         }
 
         zm8_de_assign_bow_team(player, element);
-        player iprintlnbold("^2zm8: switched to " + label + " BOW TEAM - release and press F again to take ACTIVE");
+        player iprintlnbold("^2zm8: switched to " + label + " BOW TEAM - release and press P again to take ACTIVE");
         return;
     }
 
@@ -928,7 +1022,7 @@ function zm8_de_unlock_team_use_after_release()
 {
     self endon("disconnect");
 
-    while (self usebuttonpressed())
+    while (self actionslotfourbuttonpressed())
     {
         wait 0.05;
     }
